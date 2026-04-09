@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "npm run build && node dist/server.js",
-    "build": "tsc --outDir dist -m nodenext -t es2024 --esModuleInterop src/app.ts src/server.ts",
+    "build": "tsc --outDir dist --project tsconfig.json",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "prisma:generate": "prisma generate",

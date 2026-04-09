@@ -12,7 +12,8 @@
       "node",
       "jest"
     ],
-    "isolatedModules": true
+    "isolatedModules": true,
+    "outDir": "dist"
   },
   "include": [
     "src/**/*.ts",
