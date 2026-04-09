@@ -1,0 +1,120 @@
+import { randomUUID } from "node:crypto";
+import { Err, Ok, type Result } from "../lib/result";
+import { EventValidationError, UnexpectedEventError, type EventError } from "./errors";
+import { EVENT_CATEGORIES, type EventCategory, type IEventRecord } from "./Event";
+import type { IEventRepository } from "./EventRepository";
+
+export interface CreateEventInput {
+  title: string;
+  description: string;
+  location: string;
+  category: string;
+  capacity: string;
+  startDate: string;
+  endDate: string;
+}
+
+export interface IEventService {
+  createEvent(input: CreateEventInput, organizerId: string): Promise<Result<IEventRecord, EventError>>;
+}
+
+class EventService implements IEventService {
+  constructor(private readonly events: IEventRepository) {}
+
+  async createEvent(
+    input: CreateEventInput,
+    organizerId: string,
+  ): Promise<Result<IEventRecord, EventError>> {
+    const title = input.title.trim();
+    const description = input.description.trim();
+    const location = input.location.trim();
+    const categoryRaw = input.category.trim();
+    const capacityRaw = input.capacity.trim();
+    const startDateRaw = input.startDate.trim();
+    const endDateRaw = input.endDate.trim();
+
+    if (!title) {
+      return Err(EventValidationError("Title is required."));
+    }
+    if (title.length > 100) {
+      return Err(EventValidationError("Title must be 100 characters or fewer."));
+    }
+
+    if (!description) {
+      return Err(EventValidationError("Description is required."));
+    }
+    if (description.length > 2000) {
+      return Err(EventValidationError("Description must be 2000 characters or fewer."));
+    }
+
+    if (!location) {
+      return Err(EventValidationError("Location is required."));
+    }
+    if (location.length > 200) {
+      return Err(EventValidationError("Location must be 200 characters or fewer."));
+    }
+
+    if (!categoryRaw) {
+      return Err(EventValidationError("Category is required."));
+    }
+    if (!EVENT_CATEGORIES.includes(categoryRaw as EventCategory)) {
+      return Err(EventValidationError("Category must be one of: " + EVENT_CATEGORIES.join(", ") + "."));
+    }
+    const category = categoryRaw as EventCategory;
+
+    if (!capacityRaw) {
+      return Err(EventValidationError("Capacity is required."));
+    }
+    const capacity = Number(capacityRaw);
+    if (!Number.isInteger(capacity) || capacity < 1) {
+      return Err(EventValidationError("Capacity must be a positive whole number."));
+    }
+
+    if (!startDateRaw) {
+      return Err(EventValidationError("Start date is required."));
+    }
+    const startDate = new Date(startDateRaw);
+    if (isNaN(startDate.getTime())) {
+      return Err(EventValidationError("Start date is not a valid date."));
+    }
+
+    if (!endDateRaw) {
+      return Err(EventValidationError("End date is required."));
+    }
+    const endDate = new Date(endDateRaw);
+    if (isNaN(endDate.getTime())) {
+      return Err(EventValidationError("End date is not a valid date."));
+    }
+
+    if (endDate.getTime() <= startDate.getTime()) {
+      return Err(EventValidationError("End date must be after the start date."));
+    }
+
+    const now = new Date().toISOString();
+    const event: IEventRecord = {
+      id: randomUUID(),
+      title,
+      description,
+      location,
+      category,
+      capacity,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      status: "draft",
+      organizerId,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const result = await this.events.create(event);
+    if (result.ok === false) {
+      return Err(UnexpectedEventError(result.value.message));
+    }
+
+    return Ok(result.value);
+  }
+}
+
+export function CreateEventService(events: IEventRepository): IEventService {
+  return new EventService(events);
+}
