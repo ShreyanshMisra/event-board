@@ -1,6 +1,24 @@
 import { randomUUID } from "node:crypto";
 import { Err, Ok, type Result } from "../lib/result";
-import { EventValidationError, UnexpectedEventError, type EventError } from "./errors";
+import {
+  TitleRequired,
+  TitleTooLong,
+  DescriptionRequired,
+  DescriptionTooLong,
+  LocationRequired,
+  LocationTooLong,
+  CategoryRequired,
+  CategoryInvalid,
+  CapacityRequired,
+  CapacityInvalid,
+  StartDateRequired,
+  StartDateInvalid,
+  EndDateRequired,
+  EndDateInvalid,
+  EndDateBeforeStartDate,
+  UnexpectedEventError,
+  type EventError,
+} from "./errors";
 import { EVENT_CATEGORIES, type EventCategory, type IEventRecord } from "./Event";
 import type { IEventRepository } from "./EventRepository";
 
@@ -34,60 +52,60 @@ class EventService implements IEventService {
     const endDateRaw = input.endDate.trim();
 
     if (!title) {
-      return Err(EventValidationError("Title is required."));
+      return Err(TitleRequired("Title is required."));
     }
     if (title.length > 100) {
-      return Err(EventValidationError("Title must be 100 characters or fewer."));
+      return Err(TitleTooLong("Title must be 100 characters or fewer."));
     }
 
     if (!description) {
-      return Err(EventValidationError("Description is required."));
+      return Err(DescriptionRequired("Description is required."));
     }
     if (description.length > 2000) {
-      return Err(EventValidationError("Description must be 2000 characters or fewer."));
+      return Err(DescriptionTooLong("Description must be 2000 characters or fewer."));
     }
 
     if (!location) {
-      return Err(EventValidationError("Location is required."));
+      return Err(LocationRequired("Location is required."));
     }
     if (location.length > 200) {
-      return Err(EventValidationError("Location must be 200 characters or fewer."));
+      return Err(LocationTooLong("Location must be 200 characters or fewer."));
     }
 
     if (!categoryRaw) {
-      return Err(EventValidationError("Category is required."));
+      return Err(CategoryRequired("Category is required."));
     }
     if (!EVENT_CATEGORIES.includes(categoryRaw as EventCategory)) {
-      return Err(EventValidationError("Category must be one of: " + EVENT_CATEGORIES.join(", ") + "."));
+      return Err(CategoryInvalid("Category must be one of: " + EVENT_CATEGORIES.join(", ") + "."));
     }
     const category = categoryRaw as EventCategory;
 
     if (!capacityRaw) {
-      return Err(EventValidationError("Capacity is required."));
+      return Err(CapacityRequired("Capacity is required."));
     }
     const capacity = Number(capacityRaw);
     if (!Number.isInteger(capacity) || capacity < 1) {
-      return Err(EventValidationError("Capacity must be a positive whole number."));
+      return Err(CapacityInvalid("Capacity must be a positive whole number."));
     }
 
     if (!startDateRaw) {
-      return Err(EventValidationError("Start date is required."));
+      return Err(StartDateRequired("Start date is required."));
     }
     const startDate = new Date(startDateRaw);
     if (isNaN(startDate.getTime())) {
-      return Err(EventValidationError("Start date is not a valid date."));
+      return Err(StartDateInvalid("Start date is not a valid date."));
     }
 
     if (!endDateRaw) {
-      return Err(EventValidationError("End date is required."));
+      return Err(EndDateRequired("End date is required."));
     }
     const endDate = new Date(endDateRaw);
     if (isNaN(endDate.getTime())) {
-      return Err(EventValidationError("End date is not a valid date."));
+      return Err(EndDateInvalid("End date is not a valid date."));
     }
 
     if (endDate.getTime() <= startDate.getTime()) {
-      return Err(EventValidationError("End date must be after the start date."));
+      return Err(EndDateBeforeStartDate("End date must be after the start date."));
     }
 
     const now = new Date().toISOString();

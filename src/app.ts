@@ -271,6 +271,7 @@ class ExpressApp implements IApp {
         }
 
         await this.eventController.createFromForm(
+          req,
           res,
           {
             title: typeof req.body.title === "string" ? req.body.title : "",
