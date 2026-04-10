@@ -1,4 +1,5 @@
 import { Err, Ok, type Result } from "../lib/result";
+import type { UserRole } from "../auth/User";
 import { UnexpectedEventError, type EventError } from "./errors";
 import type { IEventRecord } from "./Event";
 import type { IEventRepository } from "./EventRepository";
@@ -15,7 +16,7 @@ class InMemoryEventRepository implements IEventRepository {
     }
   }
 
-  async findById(id: string): Promise<Result<IEventRecord | null, EventError>> {
+  async findById(id: string, _userRole: UserRole): Promise<Result<IEventRecord | null, EventError>> {
     try {
       const match = this.events.find((e) => e.id === id) ?? null;
       return Ok(match);
