@@ -1,4 +1,4 @@
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import type { IAppBrowserSession } from "../session/AppSession";
 import type { ILoggingService } from "../service/LoggingService";
 import type { IEventService, CreateEventInput } from "./EventService";
@@ -11,6 +11,7 @@ export interface IEventController {
     pageError?: string | null,
   ): Promise<void>;
   createFromForm(
+    req: Request,
     res: Response,
     input: CreateEventInput,
     organizerId: string,
@@ -25,9 +26,9 @@ class EventController implements IEventController {
   ) {}
 
   private mapErrorStatus(error: EventError): number {
-    if (error.name === "EventValidationError") return 400;
     if (error.name === "EventNotFound") return 404;
-    return 500;
+    if (error.name === "UnexpectedEventError") return 500;
+    return 400;
   }
 
   async showCreateForm(
@@ -39,24 +40,43 @@ class EventController implements IEventController {
   }
 
   async createFromForm(
+    req: Request,
     res: Response,
     input: CreateEventInput,
     organizerId: string,
     session: IAppBrowserSession,
   ): Promise<void> {
     const result = await this.service.createEvent(input, organizerId);
+    const isHtmx = req.get("HX-Request") === "true";
 
     if (result.ok === false) {
       const error = result.value;
       const status = this.mapErrorStatus(error);
       const log = status >= 500 ? this.logger.error : this.logger.warn;
       log.call(this.logger, `Create event failed: ${error.message}`);
+
+      if (isHtmx) {
+        res.status(status).render("events/partials/form", {
+          pageError: error.message,
+          session,
+          layout: false,
+        });
+        return;
+      }
+
       res.status(status);
       await this.showCreateForm(res, session, error.message);
       return;
     }
 
     this.logger.info(`Created event "${result.value.title}" (${result.value.id})`);
+
+    if (isHtmx) {
+      res.set("HX-Redirect", "/home");
+      res.sendStatus(204);
+      return;
+    }
+
     res.redirect("/home");
   }
 }
