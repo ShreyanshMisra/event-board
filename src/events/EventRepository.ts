@@ -7,4 +7,6 @@ export interface IEventRepository {
   create(event: IEventRecord): Promise<Result<IEventRecord, EventError>>;
   findById(id: string, userRole: UserRole): Promise<Result<IEventRecord | null, EventError>>;
   findByOrganizerId(organizerId: string): Promise<Result<IEventRecord[], EventError>>;
+  
+  findUpcoming(): Promise<Result<IEventRecord[], EventError>>;
 }
