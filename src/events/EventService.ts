@@ -19,7 +19,13 @@ import {
   UnexpectedEventError,
   type EventError,
 } from "./errors";
-import { EVENT_CATEGORIES, type EventCategory, type IEventRecord } from "./Event";
+import {
+  EVENT_CATEGORIES,
+  type EventCategory,
+  type IEventRecord,
+  type IEventSummary,
+  toEventSummary,
+} from "./Event";
 import type { IEventRepository } from "./EventRepository";
 
 export interface CreateEventInput {
@@ -33,7 +39,11 @@ export interface CreateEventInput {
 }
 
 export interface IEventService {
-  createEvent(input: CreateEventInput, organizerId: string): Promise<Result<IEventRecord, EventError>>;
+  createEvent(
+    input: CreateEventInput,
+    organizerId: string,
+  ): Promise<Result<IEventRecord, EventError>>;
+  searchUpcoming(query: string): Promise<Result<IEventSummary[], EventError>>;
 }
 
 class EventService implements IEventService {
@@ -62,7 +72,9 @@ class EventService implements IEventService {
       return Err(DescriptionRequired("Description is required."));
     }
     if (description.length > 2000) {
-      return Err(DescriptionTooLong("Description must be 2000 characters or fewer."));
+      return Err(
+        DescriptionTooLong("Description must be 2000 characters or fewer."),
+      );
     }
 
     if (!location) {
@@ -76,7 +88,11 @@ class EventService implements IEventService {
       return Err(CategoryRequired("Category is required."));
     }
     if (!EVENT_CATEGORIES.includes(categoryRaw as EventCategory)) {
-      return Err(CategoryInvalid("Category must be one of: " + EVENT_CATEGORIES.join(", ") + "."));
+      return Err(
+        CategoryInvalid(
+          "Category must be one of: " + EVENT_CATEGORIES.join(", ") + ".",
+        ),
+      );
     }
     const category = categoryRaw as EventCategory;
 
@@ -105,7 +121,9 @@ class EventService implements IEventService {
     }
 
     if (endDate.getTime() <= startDate.getTime()) {
-      return Err(EndDateBeforeStartDate("End date must be after the start date."));
+      return Err(
+        EndDateBeforeStartDate("End date must be after the start date."),
+      );
     }
 
     const now = new Date().toISOString();
@@ -124,12 +142,32 @@ class EventService implements IEventService {
       updatedAt: now,
     };
 
-    const result = await this.events.create(event);
+    return this.events.create(event);
+  }
+
+  async searchUpcoming(
+    query: string,
+  ): Promise<Result<IEventSummary[], EventError>> {
+    const result = await this.events.findUpcoming();
     if (result.ok === false) {
-      return Err(UnexpectedEventError(result.value.message));
+      return result;
     }
 
-    return Ok(result.value);
+    const trimmedQuery = query.trim().toLowerCase();
+
+    if (!trimmedQuery) {
+      return Ok(result.value.map(toEventSummary));
+    }
+
+    const matches = result.value.filter((event) => {
+      return (
+        event.title.toLowerCase().includes(trimmedQuery) ||
+        event.description.toLowerCase().includes(trimmedQuery) ||
+        event.location.toLowerCase().includes(trimmedQuery)
+      );
+    });
+
+    return Ok(matches.map(toEventSummary));
   }
 }
 

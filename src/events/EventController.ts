@@ -17,6 +17,8 @@ export interface IEventController {
     organizerId: string,
     session: IAppBrowserSession,
   ): Promise<void>;
+
+  searchUpcoming(req: Request, res: Response): Promise<void>;
 }
 
 class EventController implements IEventController {
@@ -69,7 +71,9 @@ class EventController implements IEventController {
       return;
     }
 
-    this.logger.info(`Created event "${result.value.title}" (${result.value.id})`);
+    this.logger.info(
+      `Created event "${result.value.title}" (${result.value.id})`,
+    );
 
     if (isHtmx) {
       res.set("HX-Redirect", "/home");
@@ -78,6 +82,24 @@ class EventController implements IEventController {
     }
 
     res.redirect("/home");
+  }
+
+  async searchUpcoming(req: Request, res: Response): Promise<void> {
+    const query = typeof req.query.q === "string" ? req.query.q : "";
+    const result = await this.service.searchUpcoming(query);
+
+    if (result.ok === false) {
+      res.status(500).render("partials/error", {
+        message: result.value.message,
+        layout: false,
+      });
+      return;
+    }
+
+    res.render("events/partials/list", {
+      events: result.value,
+      layout: false,
+    });
   }
 }
 
