@@ -1,6 +1,6 @@
 import { Err, Ok, type Result } from "../lib/result";
 import type { UserRole } from "../auth/User";
-import { UnexpectedEventError, type EventError } from "./errors";
+import { EventNotFound, UnexpectedEventError, type EventError } from "./errors";
 import type { IEventRecord } from "./Event";
 import type { IEventRepository } from "./EventRepository";
 
@@ -16,7 +16,10 @@ class InMemoryEventRepository implements IEventRepository {
     }
   }
 
-  async findById(id: string, _userRole: UserRole): Promise<Result<IEventRecord | null, EventError>> {
+  async findById(
+    id: string,
+    _userRole: UserRole,
+  ): Promise<Result<IEventRecord | null, EventError>> {
     try {
       const match = this.events.find((e) => e.id === id) ?? null;
       return Ok(match);
@@ -25,7 +28,9 @@ class InMemoryEventRepository implements IEventRepository {
     }
   }
 
-  async findByOrganizerId(organizerId: string): Promise<Result<IEventRecord[], EventError>> {
+  async findByOrganizerId(
+    organizerId: string,
+  ): Promise<Result<IEventRecord[], EventError>> {
     try {
       const matches = this.events.filter((e) => e.organizerId === organizerId);
       return Ok(matches);
@@ -33,9 +38,29 @@ class InMemoryEventRepository implements IEventRepository {
       return Err(UnexpectedEventError("Unable to list events."));
     }
   }
-  async findAll(): Promise<Result<IEventRecord[], Error>> {
-  return Ok(this.events);
-}
+  async findAll(): Promise<Result<IEventRecord[], EventError>> {
+    return Ok(this.events);
+  }
+  async updateStatus(
+    id: string,
+    status: IEventRecord["status"],
+  ): Promise<Result<IEventRecord, EventError>> {
+    const index = this.events.findIndex((event) => event.id === id);
+
+    if (index === -1) {
+      return Err(EventNotFound("Event not found."));
+    }
+
+    const current = this.events[index];
+    const updated: IEventRecord = {
+      ...current,
+      status,
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.events[index] = updated;
+    return Ok(updated);
+  }
 }
 
 export function CreateInMemoryEventRepository(): IEventRepository {
