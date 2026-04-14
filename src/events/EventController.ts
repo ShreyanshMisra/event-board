@@ -151,6 +151,7 @@ class EventController implements IEventController {
     res.render("events/detail", {
       event,
       session,
+      pageError: null,
       canEdit,
       canRsvp,
       canPublish,
@@ -207,23 +208,45 @@ class EventController implements IEventController {
       user.role,
     );
 
+    const isHtmx = req.get("HX-Request") === "true";
+
     if (result.ok === false) {
       const error = result.value;
       const status = this.mapErrorStatus(error);
-      const log = status >= 500 ? this.logger.error : this.logger.warn;
-      log.call(this.logger, `Publish event failed: ${error.message}`);
 
       res.status(status).render("errors/not-found", {
         pageError: error.message,
         session,
+        layout: isHtmx ? false : undefined,
       });
       return;
     }
 
-    this.logger.info(
-      `Published event "${result.value.title}" (${result.value.id})`,
-    );
-    res.redirect(`/events/${result.value.id}`);
+    const event = result.value;
+
+    const isOrganizer = event.organizerId === user.userId;
+    const isAdmin = user.role === "admin";
+
+    const canEdit = isOrganizer || isAdmin;
+    const canRsvp = event.status === "published" && !isOrganizer && !isAdmin;
+    const canPublish = event.status === "draft" && (isOrganizer || isAdmin);
+    const canCancel = event.status === "published" && (isOrganizer || isAdmin);
+
+    if (isHtmx) {
+      res.render("events/detail", {
+        event,
+        session,
+        pageError: null,
+        canEdit,
+        canRsvp,
+        canPublish,
+        canCancel,
+        layout: false,
+      });
+      return;
+    }
+
+    res.redirect(`/events/${event.id}`);
   }
 
   async cancelFromDetailPage(
@@ -245,23 +268,45 @@ class EventController implements IEventController {
       user.role,
     );
 
+    const isHtmx = req.get("HX-Request") === "true";
+
     if (result.ok === false) {
       const error = result.value;
       const status = this.mapErrorStatus(error);
-      const log = status >= 500 ? this.logger.error : this.logger.warn;
-      log.call(this.logger, `Cancel event failed: ${error.message}`);
 
       res.status(status).render("errors/not-found", {
         pageError: error.message,
         session,
+        layout: isHtmx ? false : undefined,
       });
       return;
     }
 
-    this.logger.info(
-      `Cancelled event "${result.value.title}" (${result.value.id})`,
-    );
-    res.redirect(`/events/${result.value.id}`);
+    const event = result.value;
+
+    const isOrganizer = event.organizerId === user.userId;
+    const isAdmin = user.role === "admin";
+
+    const canEdit = isOrganizer || isAdmin;
+    const canRsvp = event.status === "published" && !isOrganizer && !isAdmin;
+    const canPublish = event.status === "draft" && (isOrganizer || isAdmin);
+    const canCancel = event.status === "published" && (isOrganizer || isAdmin);
+
+    if (isHtmx) {
+      res.render("events/detail", {
+        event,
+        session,
+        pageError: null,
+        canEdit,
+        canRsvp,
+        canPublish,
+        canCancel,
+        layout: false,
+      });
+      return;
+    }
+
+    res.redirect(`/events/${event.id}`);
   }
 }
 
