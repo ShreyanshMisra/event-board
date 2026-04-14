@@ -17,6 +17,15 @@ export interface IEventController {
     organizerId: string,
     session: IAppBrowserSession,
   ): Promise<void>;
+  showDetailPage(
+  req: Request,
+  res: Response,
+  session: IAppBrowserSession,
+): Promise<void>;
+showHomePage(
+  res: Response,
+  session: IAppBrowserSession,
+): Promise<void>;
 }
 
 class EventController implements IEventController {
@@ -79,7 +88,92 @@ class EventController implements IEventController {
 
     res.redirect("/home");
   }
+     async showDetailPage(
+    req: Request,
+    res: Response,
+    session: IAppBrowserSession,
+  ): Promise<void> {
+    const eventId = req.params.id as string;
+
+    const user = session.authenticatedUser;
+    if (!user) {
+      res.redirect("/login");
+      return;
+    }
+
+    const result = await this.service.findVisibleEventById(
+      eventId,
+      user.userId,
+      user.role,
+    );
+
+    if (result.ok === false) {
+      const error = result.value;
+      const status = this.mapErrorStatus(error);
+      const log = status >= 500 ? this.logger.error : this.logger.warn;
+      log.call(this.logger, `Find event failed: ${error.message}`);
+
+      res.status(status).render("errors/not-found", {
+        pageError: error.message,
+        session,
+      });
+      return;
+    }
+
+    if (!result.value) {
+      res.status(404).render("errors/not-found", {
+        pageError: "Event not found.",
+        session,
+      });
+      return;
+    }
+
+    const event = result.value;
+
+    const isOrganizer = event.organizerId === user.userId;
+    const isAdmin = user.role === "admin";
+
+    const canEdit = isOrganizer || isAdmin;
+    const canRsvp = event.status === "published" && !isOrganizer && !isAdmin;
+
+    res.render("events/detail", {
+      event,
+      session,
+      canEdit,
+      canRsvp,
+    });
+  }
+
+  async showHomePage(
+  res: Response,
+  session: IAppBrowserSession,
+): Promise<void> {
+  const user = session.authenticatedUser;
+
+  if (!user) {
+    res.redirect("/login");
+    return;
+  }
+
+  const result = await this.service.listVisibleEvents(user.userId, user.role);
+
+  if (!result.ok) {
+    const status = this.mapErrorStatus(result.value);
+    res.status(status).render("home", {
+      session,
+      pageError: result.value.message,
+      events: [],
+    });
+    return;
+  }
+
+  res.render("home", {
+    session,
+    pageError: null,
+    events: result.value,
+  });
 }
+  }
 
 export function CreateEventController(
   service: IEventService,

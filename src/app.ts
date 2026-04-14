@@ -289,6 +289,18 @@ class ExpressApp implements IApp {
         );
       }),
     );
+    
+      this.app.get(
+        "/events/:id",
+        asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+    }
+
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.showDetailPage(req, res, browserSession);
+        }),
+    );
 
     // ── RSVP routes ────────────────────────────────────────────────
 
@@ -337,7 +349,7 @@ class ExpressApp implements IApp {
 
         const browserSession = recordPageView(sessionStore(req));
         this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-        res.render("home", { session: browserSession, pageError: null });
+        await this.eventController.showHomePage(res, browserSession);
       }),
     );
 
