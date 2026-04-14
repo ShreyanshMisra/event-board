@@ -287,7 +287,19 @@ class ExpressApp implements IApp {
         );
       }),
     );
+    
+      this.app.get(
+        "/events/:id",
+        asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+    }
 
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.showDetailPage(req, res, browserSession);
+        }),
+    );
+    
     // ── Authenticated home page ──────────────────────────────────────
     // TODO: Replace this placeholder with your project's main page.
 
@@ -300,7 +312,7 @@ class ExpressApp implements IApp {
 
         const browserSession = recordPageView(sessionStore(req));
         this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-        res.render("home", { session: browserSession, pageError: null });
+        await this.eventController.showHomePage(res, browserSession);
       }),
     );
 

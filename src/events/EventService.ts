@@ -21,6 +21,7 @@ import {
 } from "./errors";
 import { EVENT_CATEGORIES, type EventCategory, type IEventRecord } from "./Event";
 import type { IEventRepository } from "./EventRepository";
+import type { UserRole } from "../auth/User";
 
 export interface CreateEventInput {
   title: string;
@@ -34,6 +35,16 @@ export interface CreateEventInput {
 
 export interface IEventService {
   createEvent(input: CreateEventInput, organizerId: string): Promise<Result<IEventRecord, EventError>>;
+    findById(id: string, userRole: UserRole): Promise<Result<IEventRecord | null, EventError>>;
+    findVisibleEventById(
+    id: string,
+    userId: string,
+    userRole: UserRole,
+  ): Promise<Result<IEventRecord | null, EventError>>;
+  listVisibleEvents(
+  userId: string,
+  userRole: UserRole,
+): Promise<Result<IEventRecord[], EventError>>;
 }
 
 class EventService implements IEventService {
@@ -131,6 +142,76 @@ class EventService implements IEventService {
 
     return Ok(result.value);
   }
+  async findById(
+  id: string,
+  userRole: UserRole,
+): Promise<Result<IEventRecord | null, EventError>> {
+  const result = await this.events.findById(id, userRole);
+
+  if (result.ok === false) {
+    return Err(UnexpectedEventError(result.value.message));
+  }
+
+  const event = result.value;
+
+  if (!event) {
+    return Ok(null);
+  }
+
+  if (event.status === "draft" && userRole !== "admin") {
+    return Ok(null);
+  }
+
+  return Ok(event);
+}
+
+async findVisibleEventById(
+  id: string,
+  userId: string,
+  userRole: UserRole,
+): Promise<Result<IEventRecord | null, EventError>> {
+  const result = await this.events.findById(id, userRole);
+
+  if (result.ok === false) {
+    return Err(UnexpectedEventError(result.value.message));
+  }
+
+  const event = result.value;
+
+  if (!event) {
+    return Ok(null);
+  }
+
+  const canViewDraft =
+    userRole === "admin" || event.organizerId === userId;
+
+  if (event.status === "draft" && !canViewDraft) {
+    return Ok(null);
+  }
+
+  return Ok(event);
+}
+
+async listVisibleEvents(
+  userId: string,
+  userRole: UserRole,
+): Promise<Result<IEventRecord[], EventError>> {
+  const result = await this.events.findAll();
+
+  if (result.ok === false) {
+    return Err(UnexpectedEventError(result.value.message));
+  }
+
+  const visibleEvents = result.value.filter((event) => {
+    if (event.status !== "draft") {
+      return true;
+    }
+
+    return userRole === "admin" || event.organizerId === userId;
+  });
+
+  return Ok(visibleEvents);
+}
 }
 
 export function CreateEventService(events: IEventRepository): IEventService {

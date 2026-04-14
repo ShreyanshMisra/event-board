@@ -4,7 +4,7 @@
   "description": "A starter application with authentication and authorization for team projects.",
   "main": "index.js",
   "scripts": {
-    "dev": "npm run build && node dist/server.js",
+    "dev": "npm run build && node dist/src/server.js",
     "build": "tsc --outDir dist --project tsconfig.json",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",

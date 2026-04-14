@@ -33,6 +33,9 @@ class InMemoryEventRepository implements IEventRepository {
       return Err(UnexpectedEventError("Unable to list events."));
     }
   }
+  async findAll(): Promise<Result<IEventRecord[], Error>> {
+  return Ok(this.events);
+}
 }
 
 export function CreateInMemoryEventRepository(): IEventRepository {
