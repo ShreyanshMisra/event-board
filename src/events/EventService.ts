@@ -18,8 +18,15 @@ import {
   EndDateBeforeStartDate,
   UnexpectedEventError,
   type EventError,
+  InvalidEventStateTransition,
+  EventUnauthorized,
+  EventNotFound,
 } from "./errors";
-import { EVENT_CATEGORIES, type EventCategory, type IEventRecord } from "./Event";
+import {
+  EVENT_CATEGORIES,
+  type EventCategory,
+  type IEventRecord,
+} from "./Event";
 import type { IEventRepository } from "./EventRepository";
 import type { UserRole } from "../auth/User";
 
@@ -34,17 +41,33 @@ export interface CreateEventInput {
 }
 
 export interface IEventService {
-  createEvent(input: CreateEventInput, organizerId: string): Promise<Result<IEventRecord, EventError>>;
-    findById(id: string, userRole: UserRole): Promise<Result<IEventRecord | null, EventError>>;
-    findVisibleEventById(
+  createEvent(
+    input: CreateEventInput,
+    organizerId: string,
+  ): Promise<Result<IEventRecord, EventError>>;
+  findById(
+    id: string,
+    userRole: UserRole,
+  ): Promise<Result<IEventRecord | null, EventError>>;
+  findVisibleEventById(
     id: string,
     userId: string,
     userRole: UserRole,
   ): Promise<Result<IEventRecord | null, EventError>>;
   listVisibleEvents(
-  userId: string,
-  userRole: UserRole,
-): Promise<Result<IEventRecord[], EventError>>;
+    userId: string,
+    userRole: UserRole,
+  ): Promise<Result<IEventRecord[], EventError>>;
+  publishEvent(
+    eventId: string,
+    actingUserId: string,
+    actingUserRole: UserRole,
+  ): Promise<Result<IEventRecord, EventError>>;
+  cancelEvent(
+    eventId: string,
+    actingUserId: string,
+    actingUserRole: UserRole,
+  ): Promise<Result<IEventRecord, EventError>>;
 }
 
 class EventService implements IEventService {
@@ -73,7 +96,9 @@ class EventService implements IEventService {
       return Err(DescriptionRequired("Description is required."));
     }
     if (description.length > 2000) {
-      return Err(DescriptionTooLong("Description must be 2000 characters or fewer."));
+      return Err(
+        DescriptionTooLong("Description must be 2000 characters or fewer."),
+      );
     }
 
     if (!location) {
@@ -87,7 +112,11 @@ class EventService implements IEventService {
       return Err(CategoryRequired("Category is required."));
     }
     if (!EVENT_CATEGORIES.includes(categoryRaw as EventCategory)) {
-      return Err(CategoryInvalid("Category must be one of: " + EVENT_CATEGORIES.join(", ") + "."));
+      return Err(
+        CategoryInvalid(
+          "Category must be one of: " + EVENT_CATEGORIES.join(", ") + ".",
+        ),
+      );
     }
     const category = categoryRaw as EventCategory;
 
@@ -116,7 +145,9 @@ class EventService implements IEventService {
     }
 
     if (endDate.getTime() <= startDate.getTime()) {
-      return Err(EndDateBeforeStartDate("End date must be after the start date."));
+      return Err(
+        EndDateBeforeStartDate("End date must be after the start date."),
+      );
     }
 
     const now = new Date().toISOString();
@@ -143,75 +174,156 @@ class EventService implements IEventService {
     return Ok(result.value);
   }
   async findById(
-  id: string,
-  userRole: UserRole,
-): Promise<Result<IEventRecord | null, EventError>> {
-  const result = await this.events.findById(id, userRole);
+    id: string,
+    userRole: UserRole,
+  ): Promise<Result<IEventRecord | null, EventError>> {
+    const result = await this.events.findById(id, userRole);
 
-  if (result.ok === false) {
-    return Err(UnexpectedEventError(result.value.message));
-  }
-
-  const event = result.value;
-
-  if (!event) {
-    return Ok(null);
-  }
-
-  if (event.status === "draft" && userRole !== "admin") {
-    return Ok(null);
-  }
-
-  return Ok(event);
-}
-
-async findVisibleEventById(
-  id: string,
-  userId: string,
-  userRole: UserRole,
-): Promise<Result<IEventRecord | null, EventError>> {
-  const result = await this.events.findById(id, userRole);
-
-  if (result.ok === false) {
-    return Err(UnexpectedEventError(result.value.message));
-  }
-
-  const event = result.value;
-
-  if (!event) {
-    return Ok(null);
-  }
-
-  const canViewDraft =
-    userRole === "admin" || event.organizerId === userId;
-
-  if (event.status === "draft" && !canViewDraft) {
-    return Ok(null);
-  }
-
-  return Ok(event);
-}
-
-async listVisibleEvents(
-  userId: string,
-  userRole: UserRole,
-): Promise<Result<IEventRecord[], EventError>> {
-  const result = await this.events.findAll();
-
-  if (result.ok === false) {
-    return Err(UnexpectedEventError(result.value.message));
-  }
-
-  const visibleEvents = result.value.filter((event) => {
-    if (event.status !== "draft") {
-      return true;
+    if (result.ok === false) {
+      return Err(UnexpectedEventError(result.value.message));
     }
 
-    return userRole === "admin" || event.organizerId === userId;
-  });
+    const event = result.value;
 
-  return Ok(visibleEvents);
-}
+    if (!event) {
+      return Ok(null);
+    }
+
+    if (event.status === "draft" && userRole !== "admin") {
+      return Ok(null);
+    }
+
+    return Ok(event);
+  }
+
+  async findVisibleEventById(
+    id: string,
+    userId: string,
+    userRole: UserRole,
+  ): Promise<Result<IEventRecord | null, EventError>> {
+    const result = await this.events.findById(id, userRole);
+
+    if (result.ok === false) {
+      return Err(UnexpectedEventError(result.value.message));
+    }
+
+    const event = result.value;
+
+    if (!event) {
+      return Ok(null);
+    }
+
+    const canViewDraft = userRole === "admin" || event.organizerId === userId;
+
+    if (event.status === "draft" && !canViewDraft) {
+      return Ok(null);
+    }
+
+    return Ok(event);
+  }
+
+  async listVisibleEvents(
+    userId: string,
+    userRole: UserRole,
+  ): Promise<Result<IEventRecord[], EventError>> {
+    const result = await this.events.findAll();
+
+    if (result.ok === false) {
+      return Err(UnexpectedEventError(result.value.message));
+    }
+
+    const visibleEvents = result.value.filter((event) => {
+      if (event.status !== "draft") {
+        return true;
+      }
+
+      return userRole === "admin" || event.organizerId === userId;
+    });
+
+    return Ok(visibleEvents);
+  }
+
+  async publishEvent(
+    eventId: string,
+    actingUserId: string,
+    actingUserRole: UserRole,
+  ): Promise<Result<IEventRecord, EventError>> {
+    const result = await this.events.findById(eventId, actingUserRole);
+
+    if (result.ok === false) {
+      return Err(UnexpectedEventError(result.value.message));
+    }
+
+    const event = result.value;
+
+    if (!event) {
+      return Err(EventNotFound("Event not found."));
+    }
+
+    const isOrganizer = event.organizerId === actingUserId;
+    const isAdmin = actingUserRole === "admin";
+
+    if (!isOrganizer && !isAdmin) {
+      return Err(
+        EventUnauthorized("You are not allowed to publish this event."),
+      );
+    }
+
+    if (event.status !== "draft") {
+      return Err(
+        InvalidEventStateTransition("Only draft events can be published."),
+      );
+    }
+
+    const updated = await this.events.updateStatus(eventId, "published");
+
+    if (updated.ok === false) {
+      return Err(UnexpectedEventError(updated.value.message));
+    }
+
+    return Ok(updated.value);
+  }
+
+  async cancelEvent(
+    eventId: string,
+    actingUserId: string,
+    actingUserRole: UserRole,
+  ): Promise<Result<IEventRecord, EventError>> {
+    const result = await this.events.findById(eventId, actingUserRole);
+
+    if (result.ok === false) {
+      return Err(UnexpectedEventError(result.value.message));
+    }
+
+    const event = result.value;
+
+    if (!event) {
+      return Err(EventNotFound("Event not found."));
+    }
+
+    const isOrganizer = event.organizerId === actingUserId;
+    const isAdmin = actingUserRole === "admin";
+
+    if (!isOrganizer && !isAdmin) {
+      return Err(
+        EventUnauthorized("You are not allowed to cancel this event."),
+      );
+    }
+
+    if (event.status !== "published") {
+      return Err(
+        InvalidEventStateTransition("Only published events can be cancelled."),
+      );
+    }
+
+    const updated = await this.events.updateStatus(eventId, "cancelled");
+
+    if (updated.ok === false) {
+      return Err(UnexpectedEventError(updated.value.message));
+    }
+
+    return Ok(updated.value);
+  }
 }
 
 export function CreateEventService(events: IEventRepository): IEventService {

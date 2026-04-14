@@ -15,7 +15,9 @@ export type EventError =
   | { name: "EndDateInvalid"; message: string }
   | { name: "EndDateBeforeStartDate"; message: string }
   | { name: "EventNotFound"; message: string }
-  | { name: "UnexpectedEventError"; message: string };
+  | { name: "UnexpectedEventError"; message: string }
+  | { name: "EventUnauthorized"; message: string }
+  | { name: "InvalidEventStateTransition"; message: string };
 
 export const TitleRequired = (message: string): EventError => ({
   name: "TitleRequired",
@@ -99,5 +101,15 @@ export const EventNotFound = (message: string): EventError => ({
 
 export const UnexpectedEventError = (message: string): EventError => ({
   name: "UnexpectedEventError",
+  message,
+});
+
+export const EventUnauthorized = (message: string): EventError => ({
+  name: "EventUnauthorized",
+  message,
+});
+
+export const InvalidEventStateTransition = (message: string): EventError => ({
+  name: "InvalidEventStateTransition",
   message,
 });

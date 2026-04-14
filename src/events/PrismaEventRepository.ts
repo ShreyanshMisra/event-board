@@ -47,7 +47,10 @@ class PrismaEventRepository implements IEventRepository {
     }
   }
 
-  async findById(id: string, _userRole: UserRole): Promise<Result<IEventRecord | null, EventError>> {
+  async findById(
+    id: string,
+    _userRole: UserRole,
+  ): Promise<Result<IEventRecord | null, EventError>> {
     try {
       const row = await this.prisma.event.findUnique({ where: { id } });
       return Ok(row ? toEventRecord(row) : null);
@@ -56,7 +59,9 @@ class PrismaEventRepository implements IEventRepository {
     }
   }
 
-  async findByOrganizerId(organizerId: string): Promise<Result<IEventRecord[], EventError>> {
+  async findByOrganizerId(
+    organizerId: string,
+  ): Promise<Result<IEventRecord[], EventError>> {
     try {
       const rows = await this.prisma.event.findMany({ where: { organizerId } });
       return Ok(rows.map(toEventRecord));
@@ -64,21 +69,41 @@ class PrismaEventRepository implements IEventRepository {
       return Err(UnexpectedEventError("Unable to list events."));
     }
   }
-  async findAll(): Promise<Result<IEventRecord[], Error>> {
-  try {
-    const rows = await this.prisma.event.findMany({
-      orderBy: {
-        startDate: "asc",
-      },
-    });
+  async findAll(): Promise<Result<IEventRecord[], EventError>> {
+    try {
+      const rows = await this.prisma.event.findMany({
+        orderBy: {
+          startDate: "asc",
+        },
+      });
 
-    return Ok(rows.map(toEventRecord));
-  } catch (error) {
-    return Err(error as Error);
+      return Ok(rows.map(toEventRecord));
+    } catch {
+      return Err(UnexpectedEventError("Unable to list events."));
+    }
+  }
+
+  async updateStatus(
+    id: string,
+    status: IEventRecord["status"],
+  ): Promise<Result<IEventRecord, EventError>> {
+    try {
+      const row = await this.prisma.event.update({
+        where: { id },
+        data: {
+          status,
+        },
+      });
+
+      return Ok(toEventRecord(row));
+    } catch {
+      return Err(UnexpectedEventError("Unable to update event status."));
+    }
   }
 }
-}
 
-export function CreatePrismaEventRepository(prisma: PrismaClient): IEventRepository {
+export function CreatePrismaEventRepository(
+  prisma: PrismaClient,
+): IEventRepository {
   return new PrismaEventRepository(prisma);
 }

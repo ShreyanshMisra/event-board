@@ -38,27 +38,25 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Start</h2>
-        <p class="mt-1">
-        <%= new Date(event.startDate).toLocaleString() %>
-</p>
+        <p class="mt-1"><%= new Date(event.startDate).toLocaleString() %></p>
       </div>
 
       <div>
         <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">End</h2>
-        <p class="mt-1">
-        <%= new Date(event.endDate).toLocaleString() %>
-</p>
+        <p class="mt-1"><%= new Date(event.endDate).toLocaleString() %></p>
       </div>
     </div>
   </div>
 
-  <!-- Actions -->
+  <!-- ACTIONS -->
   <div class="mt-8 pt-6 border-t border-slate-200">
     <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
       Actions
     </h2>
 
     <div class="flex flex-wrap gap-3">
+
+      <!-- EDIT -->
       <% if (canEdit) { %>
         <a
           href="/events/<%= event.id %>/edit"
@@ -68,6 +66,31 @@
         </a>
       <% } %>
 
+      <!-- PUBLISH -->
+      <% if (canPublish) { %>
+        <form method="post" action="/events/<%= event.id %>/publish">
+          <button
+            type="submit"
+            class="inline-flex items-center rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-500"
+          >
+            Publish Event
+          </button>
+        </form>
+      <% } %>
+
+      <!-- CANCEL -->
+      <% if (canCancel) { %>
+        <form method="post" action="/events/<%= event.id %>/cancel">
+          <button
+            type="submit"
+            class="inline-flex items-center rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+          >
+            Cancel Event
+          </button>
+        </form>
+      <% } %>
+
+      <!-- RSVP -->
       <% if (canRsvp) { %>
         <form method="post" action="/events/<%= event.id %>/rsvp">
           <button
@@ -78,6 +101,7 @@
           </button>
         </form>
       <% } %>
+
     </div>
   </div>
 </section>
