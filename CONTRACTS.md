@@ -102,9 +102,93 @@ Method: findByOrganizerId(organizerId: string): Promise<Result<IEventRecord[], E
 
 ## Feature 3: Event Editing (Jay)
 
-## Feature 4: My RSVPs Dashboard (Shrey) 
+## Feature 4: My RSVPs Dashboard (Shrey)
 
-## Feature 5: RSVP Toggle (Than) 
+#### Types
+
+```ts
+type RsvpStatus = "going" | "not_going";
+
+interface IRsvpRecord {
+  id: string;
+  userId: string;
+  eventId: string;
+  status: RsvpStatus;
+  createdAt: string;   // ISO 8601
+  updatedAt: string;   // ISO 8601
+}
+
+interface IRsvpWithEvent {
+  rsvp: IRsvpRecord;
+  event: {
+    id: string;
+    title: string;
+    location: string;
+    category: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+  };
+}
+```
+
+#### `IRsvpRepository` (shared contract — used by Features 4 and 5)
+
+```ts
+interface IRsvpRepository {
+  // Feature 4 reads
+  findByUserId(userId: string): Promise<Result<IRsvpWithEvent[], RsvpError>>;
+  findByUserIdAndEventId(userId: string, eventId: string): Promise<Result<IRsvpRecord | null, RsvpError>>;
+
+  // Feature 5 writes
+  upsert(rsvp: IRsvpRecord): Promise<Result<IRsvpRecord, RsvpError>>;
+  delete(userId: string, eventId: string): Promise<Result<void, RsvpError>>;
+
+  // Shared
+  countByEventId(eventId: string): Promise<Result<number, RsvpError>>;
+}
+```
+
+#### `IRsvpService.listUserRsvps`
+
+```
+Method: listUserRsvps(userId: string): Promise<Result<IRsvpWithEvent[], RsvpError>>
+```
+
+**Parameters:**
+- `userId` — string, the authenticated user's ID (from session)
+
+**Success:** `Ok<IRsvpWithEvent[]>` — all RSVPs for the user joined with event details (may be empty)
+
+**Errors:**
+- `UnexpectedRsvpError` — repository failure
+
+#### Route: `GET /my-rsvps`
+
+- **Auth:** Requires authenticated user (any role)
+- **Success:** Renders dashboard with list of user's RSVPs
+- **Empty state:** "You haven't RSVP'd to any events yet."
+
+#### Errors
+
+```ts
+type RsvpError =
+  | { name: "RsvpNotFound"; message: string }
+  | { name: "EventNotFound"; message: string }
+  | { name: "AlreadyRsvped"; message: string }
+  | { name: "InvalidRsvpStatus"; message: string }
+  | { name: "UnexpectedRsvpError"; message: string };
+```
+
+## Feature 5: RSVP Toggle (Than)
+
+#### Stub Route: `POST /events/:id/rsvp`
+
+- **Auth:** Requires authenticated user (any role)
+- **Current:** Renders placeholder page ("under construction")
+- **Shared contract:** Uses `IRsvpRepository` defined in Feature 4 (see above)
+- **Methods to use:** `upsert`, `delete`, `findByUserIdAndEventId`, `countByEventId`
+
 
 ## Feature 6: Event Search (Than) 
 

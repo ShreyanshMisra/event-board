@@ -8,6 +8,10 @@ import { CreatePasswordHasher } from "./auth/PasswordHasher";
 import { CreateEventController } from "./events/EventController";
 import { CreateEventService } from "./events/EventService";
 import { CreatePrismaEventRepository } from "./events/PrismaEventRepository";
+import { CreateInMemoryEventRepository } from "./events/InMemoryEventRepository";
+import { CreateRsvpController } from "./rsvps/RsvpController";
+import { CreateRsvpService } from "./rsvps/RsvpService";
+import { CreatePrismaRsvpRepository } from "./rsvps/PrismaRsvpRepository";
 import { CreateApp } from "./app";
 import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
@@ -24,12 +28,17 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
   // Event wiring
-  const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
-  const adapter = new PrismaBetterSqlite3({ url: dbUrl });
-  const prisma = new PrismaClient({ adapter });
-  const eventRepository = CreatePrismaEventRepository(prisma);
+  const eventRepository = CreateInMemoryEventRepository();
   const eventService = CreateEventService(eventRepository);
   const eventController = CreateEventController(eventService, resolvedLogger);
 
-  return CreateApp(authController, eventController, resolvedLogger);
+  // RSVP wiring
+  const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
+  const adapter = new PrismaBetterSqlite3({ url: dbUrl });
+  const prisma = new PrismaClient({ adapter });
+  const rsvpRepository = CreatePrismaRsvpRepository(prisma);
+  const rsvpService = CreateRsvpService(rsvpRepository);
+  const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
+
+  return CreateApp(authController, eventController, rsvpController, resolvedLogger);
 }
