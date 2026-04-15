@@ -51,6 +51,8 @@ class InMemoryEventRepository implements IEventRepository {
       .map((event) => ({ ...event }));
 
     return Ok(matches);
+  }
+
   async findAll(): Promise<Result<IEventRecord[], EventError>> {
     return Ok(this.events);
   }
