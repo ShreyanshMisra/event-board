@@ -17,6 +17,8 @@ export interface IEventController {
     organizerId: string,
     session: IAppBrowserSession,
   ): Promise<void>;
+
+  searchUpcoming(req: Request, res: Response): Promise<void>;
   showDetailPage(
     req: Request,
     res: Response,

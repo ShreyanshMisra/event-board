@@ -436,6 +436,13 @@ class ExpressApp implements IApp {
       }),
     );
 
+    this.app.get(
+      "/events/search",
+      asyncHandler(async (req, res) => {
+        await this.eventController.searchUpcoming(req, res);
+      }),
+    );
+
     // ── Error handler ────────────────────────────────────────────────
 
     this.app.use(

@@ -26,6 +26,8 @@ import {
   EVENT_CATEGORIES,
   type EventCategory,
   type IEventRecord,
+  type IEventSummary,
+  toEventSummary,
 } from "./Event";
 import type { IEventRepository } from "./EventRepository";
 import type { UserRole } from "../auth/User";
@@ -45,6 +47,7 @@ export interface IEventService {
     input: CreateEventInput,
     organizerId: string,
   ): Promise<Result<IEventRecord, EventError>>;
+  searchUpcoming(query: string): Promise<Result<IEventSummary[], EventError>>;
   findById(
     id: string,
     userRole: UserRole,
@@ -166,12 +169,32 @@ class EventService implements IEventService {
       updatedAt: now,
     };
 
-    const result = await this.events.create(event);
+    return this.events.create(event);
+  }
+
+  async searchUpcoming(
+    query: string,
+  ): Promise<Result<IEventSummary[], EventError>> {
+    const result = await this.events.findUpcoming();
     if (result.ok === false) {
-      return Err(UnexpectedEventError(result.value.message));
+      return result;
     }
 
-    return Ok(result.value);
+    const trimmedQuery = query.trim().toLowerCase();
+
+    if (!trimmedQuery) {
+      return Ok(result.value.map(toEventSummary));
+    }
+
+    const matches = result.value.filter((event) => {
+      return (
+        event.title.toLowerCase().includes(trimmedQuery) ||
+        event.description.toLowerCase().includes(trimmedQuery) ||
+        event.location.toLowerCase().includes(trimmedQuery)
+      );
+    });
+
+    return Ok(matches.map(toEventSummary));
   }
   async findById(
     id: string,
