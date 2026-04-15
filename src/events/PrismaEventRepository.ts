@@ -47,7 +47,10 @@ class PrismaEventRepository implements IEventRepository {
     }
   }
 
-  async findById(id: string, _userRole: UserRole): Promise<Result<IEventRecord | null, EventError>> {
+  async findById(
+    id: string,
+    _userRole: UserRole,
+  ): Promise<Result<IEventRecord | null, EventError>> {
     try {
       const row = await this.prisma.event.findUnique({ where: { id } });
       return Ok(row ? toEventRecord(row) : null);
@@ -56,7 +59,9 @@ class PrismaEventRepository implements IEventRepository {
     }
   }
 
-  async findByOrganizerId(organizerId: string): Promise<Result<IEventRecord[], EventError>> {
+  async findByOrganizerId(
+    organizerId: string,
+  ): Promise<Result<IEventRecord[], EventError>> {
     try {
       const rows = await this.prisma.event.findMany({ where: { organizerId } });
       return Ok(rows.map(toEventRecord));
@@ -64,8 +69,34 @@ class PrismaEventRepository implements IEventRepository {
       return Err(UnexpectedEventError("Unable to list events."));
     }
   }
+  
+  async findUpcoming(): Promise<Result<IEventRecord[], EventError>> {
+    try {
+      const now = new Date().toISOString();
+
+      const rows = await this.prisma.event.findMany({
+        where: {
+          startDate: {
+            gt: now,
+          },
+          status: {
+            notIn: ["cancelled", "past"],
+          },
+        },
+        orderBy: {
+          startDate: "asc",
+        },
+      });
+
+      return Ok(rows.map(toEventRecord));
+    } catch {
+      return Err(UnexpectedEventError("Unable to list upcoming events."));
+    }
+  }
 }
 
-export function CreatePrismaEventRepository(prisma: PrismaClient): IEventRepository {
+export function CreatePrismaEventRepository(
+  prisma: PrismaClient,
+): IEventRepository {
   return new PrismaEventRepository(prisma);
 }
