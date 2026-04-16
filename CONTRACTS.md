@@ -186,7 +186,32 @@ type RsvpError =
 - **Shared contract:** Uses `IRsvpRepository` defined in Feature 4
 
 
-## Feature 6: Event Search (Than) 
+## Feature 6: Event Search (Than)
+
+
+#### `IEventRepository.findUpcoming`
+
+Method: `findUpcoming(): Promise<Result<IEventRecord[], EventError>>`
+
+**Success:** `Ok<IEventRecord[]>` — all upcoming events excluding `cancelled` and `past`
+
+**Errors:**
+- `UnexpectedEventError` — repository failure
+
+#### `IEventService.searchUpcoming`
+Method: `searchUpcoming(query: string): Promise<Result<IEventSummary[], EventError>>`
+
+**Parameters:**
+- `query` — string; trimmed before matching
+- empty query returns all upcoming events
+- matching is case-insensitive across `title`, `description`, and `location`
+
+**Success:** `Ok<IEventSummary[]>`
+
+**Errors:**
+- `UnexpectedEventError` — repository failure
+
+
 
 ## Feature 7: Publish and Cancel Events (Karl)
 
