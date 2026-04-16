@@ -334,6 +334,13 @@ class ExpressApp implements IApp {
     );
 
     this.app.get(
+      "/events/search",
+      asyncHandler(async (req, res) => {
+        await this.eventController.searchUpcoming(req, res);
+      }),
+    );
+
+    this.app.get(
       "/events/:id",
       asyncHandler(async (req, res) => {
         if (!this.requireAuthenticated(req, res)) {
@@ -441,10 +448,46 @@ class ExpressApp implements IApp {
           return;
         }
 
+        if (currentUser.role !== "user") {
+          res.status(403).render("partials/error", {
+            message: "The RSVPs dashboard is only available to members.",
+            layout: false,
+          });
+          return;
+        }
+
         await this.rsvpController.showDashboard(
           req,
           res,
           currentUser.userId,
+          browserSession,
+        );
+      }),
+    );
+
+    this.app.get(
+      "/events/:id/rsvp-section",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.")
+              .message,
+            layout: false,
+          });
+          return;
+        }
+
+        await this.rsvpController.renderToggleSection(
+          req,
+          res,
+          currentUser.userId,
+          currentUser.role,
           browserSession,
         );
       }),
@@ -458,9 +501,21 @@ class ExpressApp implements IApp {
         }
 
         const browserSession = recordPageView(sessionStore(req));
-        await this.rsvpController.showTogglePlaceholder(
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.")
+              .message,
+            layout: false,
+          });
+          return;
+        }
+
+        await this.rsvpController.toggleFromDetailPage(
           req,
           res,
+          currentUser.userId,
+          currentUser.role,
           browserSession,
         );
       }),
@@ -479,13 +534,6 @@ class ExpressApp implements IApp {
         const browserSession = recordPageView(sessionStore(req));
         this.logger.info(`GET /home for ${browserSession.browserLabel}`);
         await this.eventController.showHomePage(res, browserSession);
-      }),
-    );
-
-    this.app.get(
-      "/events/search",
-      asyncHandler(async (req, res) => {
-        await this.eventController.searchUpcoming(req, res);
       }),
     );
 

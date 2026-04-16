@@ -98,17 +98,20 @@
           <%- include("../saved/partials/save-button", { eventId: event.id, isSaved }) %>
         <% } %>
 
-        <% if (canRsvp) { %>
-          <form method="post" action="/events/<%= event.id %>/rsvp">
-            <button
-              type="submit"
-              class="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
-            >
-              RSVP
-            </button>
-          </form>
-        <% } %>
       </div>
+
+      <% if (canRsvp) { %>
+        <div class="mt-4">
+          <div
+            id="rsvp-section"
+            hx-get="/events/<%= event.id %>/rsvp-section"
+            hx-trigger="load"
+            hx-swap="outerHTML"
+          >
+            <div class="text-sm text-slate-500">Loading RSVP...</div>
+          </div>
+        </div>
+      <% } %>
     </div>
   </section>
 </div>
