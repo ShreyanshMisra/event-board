@@ -332,6 +332,13 @@ class ExpressApp implements IApp {
     );
 
     this.app.get(
+      "/events/search",
+      asyncHandler(async (req, res) => {
+        await this.eventController.searchUpcoming(req, res);
+      }),
+    );
+
+    this.app.get(
       "/events/:id",
       asyncHandler(async (req, res) => {
         if (!this.requireAuthenticated(req, res)) {
@@ -508,13 +515,6 @@ class ExpressApp implements IApp {
         const browserSession = recordPageView(sessionStore(req));
         this.logger.info(`GET /home for ${browserSession.browserLabel}`);
         await this.eventController.showHomePage(res, browserSession);
-      }),
-    );
-
-    this.app.get(
-      "/events/search",
-      asyncHandler(async (req, res) => {
-        await this.eventController.searchUpcoming(req, res);
       }),
     );
 

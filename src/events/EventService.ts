@@ -49,7 +49,6 @@ export interface IEventService {
     input: CreateEventInput,
     organizerId: string,
   ): Promise<Result<IEventRecord, EventError>>;
-  searchUpcoming(query: string): Promise<Result<IEventSummary[], EventError>>;
   findById(
     id: string,
     userRole: UserRole,
@@ -73,6 +72,7 @@ export interface IEventService {
     actingUserId: string,
     actingUserRole: UserRole,
   ): Promise<Result<IEventRecord, EventError>>;
+  searchUpcoming(query: string): Promise<Result<IEventSummary[], EventError>>;
   editEvent(
     eventId: string,
     input: EditEventInput,
@@ -184,26 +184,36 @@ class EventService implements IEventService {
     query: string,
   ): Promise<Result<IEventSummary[], EventError>> {
     const result = await this.events.findUpcoming();
+
     if (result.ok === false) {
       return result;
     }
 
-    const trimmedQuery = query.trim().toLowerCase();
+    const now = Date.now();
+    const normalizedQuery = query.trim().toLowerCase();
 
-    if (!trimmedQuery) {
-      return Ok(result.value.map(toEventSummary));
+    const publishedUpcoming = result.value.filter((event) => {
+      return (
+        event.status === "published" &&
+        new Date(event.startDate).getTime() > now
+      );
+    });
+
+    if (!normalizedQuery) {
+      return Ok(publishedUpcoming.map(toEventSummary));
     }
 
-    const matches = result.value.filter((event) => {
+    const matches = publishedUpcoming.filter((event) => {
       return (
-        event.title.toLowerCase().includes(trimmedQuery) ||
-        event.description.toLowerCase().includes(trimmedQuery) ||
-        event.location.toLowerCase().includes(trimmedQuery)
+        event.title.toLowerCase().includes(normalizedQuery) ||
+        event.description.toLowerCase().includes(normalizedQuery) ||
+        event.location.toLowerCase().includes(normalizedQuery)
       );
     });
 
     return Ok(matches.map(toEventSummary));
   }
+
   async findById(
     id: string,
     userRole: UserRole,

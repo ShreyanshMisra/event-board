@@ -1,0 +1,16 @@
+<% if (!events || events.length === 0) { %>
+  <p class="text-slate-500">No matching events found.</p>
+<% } else { %>
+  <ul class="space-y-3">
+    <% events.forEach(event => { %>
+      <li class="rounded-xl border border-slate-200 p-4 bg-slate-50">
+        <div class="font-semibold text-slate-900"><%= event.title %></div>
+        <div class="text-slate-600"><%= event.location %></div>
+        <div class="text-sm text-slate-500">Status: <%= event.status %></div>
+        <div class="text-sm text-slate-500">
+          <%= new Date(event.startDate).toLocaleString() %>
+        </div>
+      </li>
+    <% }) %>
+  </ul>
+<% } %>

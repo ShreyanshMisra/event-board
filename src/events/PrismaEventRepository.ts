@@ -134,11 +134,8 @@ class PrismaEventRepository implements IEventRepository {
     try {
       const row = await this.prisma.event.update({
         where: { id },
-        data: {
-          status,
-        },
+        data: { status },
       });
-
       return Ok(toEventRecord(row));
     } catch {
       return Err(UnexpectedEventError("Unable to update event status."));
@@ -167,8 +164,6 @@ class PrismaEventRepository implements IEventRepository {
   }
 }
 
-export function CreatePrismaEventRepository(
-  prisma: PrismaClient,
-): IEventRepository {
+export function CreatePrismaEventRepository(prisma: PrismaClient): IEventRepository {
   return new PrismaEventRepository(prisma);
 }

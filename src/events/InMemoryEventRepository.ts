@@ -38,43 +38,23 @@ class InMemoryEventRepository implements IEventRepository {
       return Err(UnexpectedEventError("Unable to list events."));
     }
   }
-    async findUpcoming(): Promise<Result<IEventRecord[], EventError>> {
-    const now = Date.now();
 
-    const matches = this.events
-      .filter(
-        (event) =>
-          new Date(event.startDate).getTime() > now &&
-          event.status !== "cancelled" &&
-          event.status !== "past",
-      )
-      .map((event) => ({ ...event }));
+  async findUpcoming(): Promise<Result<IEventRecord[], EventError>> {
+    try {
+      const now = Date.now();
 
-    return Ok(matches);
-  }
+      const matches = this.events
+        .filter((event) => new Date(event.startDate).getTime() > now)
+        .sort(
+          (a, b) =>
+            new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+        )
+        .map((event) => ({ ...event }));
 
-  async searchUpcoming(query: string): Promise<Result<IEventRecord[], EventError>> {
-    const now = Date.now();
-    const lowerQuery = query.toLowerCase();
-
-    const matches = this.events
-      .filter(
-        (event) =>
-          new Date(event.startDate).getTime() > now &&
-          event.status !== "cancelled" &&
-          event.status !== "past",
-      )
-      .filter((event) => {
-        if (!lowerQuery) return true;
-        return (
-          event.title.toLowerCase().includes(lowerQuery) ||
-          event.description.toLowerCase().includes(lowerQuery) ||
-          event.location.toLowerCase().includes(lowerQuery)
-        );
-      })
-      .map((event) => ({ ...event }));
-
-    return Ok(matches);
+      return Ok(matches);
+    } catch {
+      return Err(UnexpectedEventError("Unable to list upcoming events."));
+    }
   }
 
   async findAll(): Promise<Result<IEventRecord[], EventError>> {
@@ -109,7 +89,6 @@ class InMemoryEventRepository implements IEventRepository {
     return Ok(event);
   }
 }
-
 
 export function CreateInMemoryEventRepository(): IEventRepository {
   return new InMemoryEventRepository();
