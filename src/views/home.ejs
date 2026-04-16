@@ -53,11 +53,17 @@
             </p>
             <p>
               <span class="font-medium">Start:</span>
-              <%= event.startDate %>
+              <%= new Date(event.startDate).toLocaleString("en-US", {
+                dateStyle: "medium",
+                timeStyle: "short"
+              }) %>
             </p>
             <p>
               <span class="font-medium">End:</span>
-              <%= event.endDate %>
+              <%= new Date(event.endDate).toLocaleString("en-US", {
+                dateStyle: "medium",
+                timeStyle: "short"
+                }) %>
             </p>
             <p>
               <span class="font-medium">Capacity:</span>

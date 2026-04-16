@@ -116,6 +116,27 @@ class PrismaEventRepository implements IEventRepository {
       return Err(UnexpectedEventError("Unable to update event status."));
     }
   }
+
+  async update(event: IEventRecord): Promise<Result<IEventRecord, EventError>> {
+    try {
+      const row = await this.prisma.event.update({
+        where: { id: event.id },
+        data: {
+          title: event.title,
+          description: event.description,
+          location: event.location,
+          category: event.category,
+          capacity: event.capacity,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          updatedAt: event.updatedAt,
+        },
+      });
+      return Ok(toEventRecord(row));
+    } catch {
+      return Err(UnexpectedEventError("Unable to update the event."));
+    }
+  }
 }
 
 export function CreatePrismaEventRepository(
