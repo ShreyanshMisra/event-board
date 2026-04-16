@@ -1,9 +1,9 @@
 <section class="mb-5 p-6 border border-slate-200 rounded-2xl bg-gradient-to-b from-white to-slate-50 shadow-lg">
-  <h1 class="text-3xl font-bold text-slate-900 mb-3">Welcome to Project Starter</h1>
+  <h1 class="text-3xl font-bold text-slate-900 mb-3">Event Board</h1>
   <p class="text-slate-500">
-    You are signed in and ready to build. This placeholder page is where your
-    project's main content will go.
+    Browse upcoming events and open each event's detail page.
   </p>
+
   <% if (session.authenticatedUser) { %>
     <p class="text-slate-500 mt-2 mb-0">
       Signed in as <strong class="text-slate-700"><%= session.authenticatedUser.displayName %></strong>
@@ -17,13 +17,14 @@
   <%- include("partials/error", { message: pageError }) %>
 <% } %>
 
-<section class="max-w-3xl p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
-  <div class="mb-4">
-    <h2 class="text-xl font-semibold mb-2">Getting Started</h2>
-    <p class="text-slate-500">
-      This starter application provides authentication and role-based authorization
-      out of the box. Here are some ideas for where to begin:
-    </p>
+<section class="max-w-5xl p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
+  <div class="mb-5 flex items-center justify-between">
+    <div>
+      <h2 class="text-xl font-semibold text-slate-900">Available Events</h2>
+      <p class="text-slate-500 mt-1">
+        Select an event to view its details.
+      </p>
+    </div>
   </div>
 
   <ul class="list-disc pl-5 space-y-2 text-slate-700">
@@ -34,34 +35,6 @@
     <li>Add your own models, services, and controllers under <code class="bg-slate-100 px-1 rounded text-sm">src/</code>.</li>
     <li>Use the Prisma schema in <code class="bg-slate-100 px-1 rounded text-sm">prisma/schema.prisma</code> to define your database tables.</li>
   </ul>
-</section>
-
-<section class="max-w-3xl mt-5 p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
-  <div class="mb-4">
-    <h2 class="text-xl font-semibold mb-2">Search Events</h2>
-    <p class="text-slate-500">
-      Search upcoming events by title, description, or location.
-    </p>
-  </div>
-
-  <input
-    type="search"
-    name="q"
-    placeholder="Search by title, description, or location"
-    hx-get="/events/search"
-    hx-trigger="input changed delay:300ms, search"
-    hx-target="#event-search-results"
-    hx-swap="innerHTML"
-    class="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-  />
-
-  <div
-    id="event-search-results"
-    class="mt-4"
-    hx-get="/events/search?q="
-    hx-trigger="load"
-    hx-swap="innerHTML"
-  ></div>
 </section>
 
 <section class="max-w-3xl mt-5 p-6 border border-slate-200 rounded-2xl bg-white shadow-lg" x-data="{ open: false }">
@@ -90,5 +63,5 @@
       </button>
       <span class="text-sm text-slate-500">A simple Alpine.js counter</span>
     </div>
-  </div>
+  <% } %>
 </section>

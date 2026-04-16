@@ -20,3 +20,14 @@ model Event {
   createdAt   String
   updatedAt   String
 }
+
+model Rsvp {
+  id        String @id
+  userId    String
+  eventId   String
+  status    String @default("going")
+  createdAt String
+  updatedAt String
+
+  @@unique([userId, eventId])
+}

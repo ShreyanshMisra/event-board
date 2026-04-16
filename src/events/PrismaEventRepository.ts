@@ -69,34 +69,8 @@ class PrismaEventRepository implements IEventRepository {
       return Err(UnexpectedEventError("Unable to list events."));
     }
   }
-  
-  async findUpcoming(): Promise<Result<IEventRecord[], EventError>> {
-    try {
-      const now = new Date().toISOString();
-
-      const rows = await this.prisma.event.findMany({
-        where: {
-          startDate: {
-            gt: now,
-          },
-          status: {
-            notIn: ["cancelled", "past"],
-          },
-        },
-        orderBy: {
-          startDate: "asc",
-        },
-      });
-
-      return Ok(rows.map(toEventRecord));
-    } catch {
-      return Err(UnexpectedEventError("Unable to list upcoming events."));
-    }
-  }
 }
 
-export function CreatePrismaEventRepository(
-  prisma: PrismaClient,
-): IEventRepository {
+export function CreatePrismaEventRepository(prisma: PrismaClient): IEventRepository {
   return new PrismaEventRepository(prisma);
 }
