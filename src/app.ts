@@ -382,6 +382,41 @@ class ExpressApp implements IApp {
       }),
     );
 
+    this.app.get(
+      "/events/:id/edit",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["staff", "admin"], "Only organizers can edit events.")) {
+          return;
+        }
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.showEditForm(req, res, browserSession);
+      }),
+    );
+
+    this.app.post(
+      "/events/:id/edit",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["staff", "admin"], "Only organizers can edit events.")) {
+          return;
+        }
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.updateFromForm(
+          req,
+          res,
+          {
+            title: typeof req.body.title === "string" ? req.body.title : "",
+            description: typeof req.body.description === "string" ? req.body.description : "",
+            location: typeof req.body.location === "string" ? req.body.location : "",
+            category: typeof req.body.category === "string" ? req.body.category : "",
+            capacity: typeof req.body.capacity === "string" ? req.body.capacity : "",
+            startDate: typeof req.body.startDate === "string" ? req.body.startDate : "",
+            endDate: typeof req.body.endDate === "string" ? req.body.endDate : "",
+          },
+          browserSession,
+        );
+      }),
+    );
+
     // ── RSVP routes ────────────────────────────────────────────────
 
     this.app.get(
@@ -411,6 +446,34 @@ class ExpressApp implements IApp {
       }),
     );
 
+    this.app.get(
+      "/events/:id/rsvp-section",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.")
+              .message,
+            layout: false,
+          });
+          return;
+        }
+
+        await this.rsvpController.renderToggleSection(
+          req,
+          res,
+          currentUser.userId,
+          currentUser.role,
+          browserSession,
+        );
+      }),
+    );
+
     this.app.post(
       "/events/:id/rsvp",
       asyncHandler(async (req, res) => {
@@ -419,9 +482,21 @@ class ExpressApp implements IApp {
         }
 
         const browserSession = recordPageView(sessionStore(req));
-        await this.rsvpController.showTogglePlaceholder(
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.")
+              .message,
+            layout: false,
+          });
+          return;
+        }
+
+        await this.rsvpController.toggleFromDetailPage(
           req,
           res,
+          currentUser.userId,
+          currentUser.role,
           browserSession,
         );
       }),
