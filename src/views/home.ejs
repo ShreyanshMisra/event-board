@@ -1,9 +1,9 @@
 <section class="mb-5 p-6 border border-slate-200 rounded-2xl bg-gradient-to-b from-white to-slate-50 shadow-lg">
-  <h1 class="text-3xl font-bold text-slate-900 mb-3">Event Board</h1>
+  <h1 class="text-3xl font-bold text-slate-900 mb-3">Welcome to Project Starter</h1>
   <p class="text-slate-500">
-    Browse upcoming events and open each event's detail page.
+    You are signed in and ready to build. This placeholder page is where your
+    project's main content will go.
   </p>
-
   <% if (session.authenticatedUser) { %>
     <p class="text-slate-500 mt-2 mb-0">
       Signed in as <strong class="text-slate-700"><%= session.authenticatedUser.displayName %></strong>
@@ -17,70 +17,50 @@
   <%- include("partials/error", { message: pageError }) %>
 <% } %>
 
-<section class="max-w-5xl p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
-  <div class="mb-5 flex items-center justify-between">
-    <div>
-      <h2 class="text-xl font-semibold text-slate-900">Available Events</h2>
-      <p class="text-slate-500 mt-1">
-        Select an event to view its details.
-      </p>
-    </div>
+<section class="max-w-3xl p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
+  <div class="mb-4">
+    <h2 class="text-xl font-semibold mb-2">Getting Started</h2>
+    <p class="text-slate-500">
+      This starter application provides authentication and role-based authorization
+      out of the box. Here are some ideas for where to begin:
+    </p>
   </div>
 
-  <% if (!events || events.length === 0) { %>
-    <div class="rounded-xl border border-slate-200 bg-slate-50 p-6 text-slate-600">
-      No events available yet.
+  <ul class="list-disc pl-5 space-y-2 text-slate-700">
+    <li>Replace this page with your project's main dashboard or landing page.</li>
+    <li>Add new routes in <code class="bg-slate-100 px-1 rounded text-sm">src/app.ts</code> and protect them with
+      <code class="bg-slate-100 px-1 rounded text-sm">requireAuthenticated</code> or <code class="bg-slate-100 px-1 rounded text-sm">requireRole</code>.</li>
+    <li>Create new EJS views in <code class="bg-slate-100 px-1 rounded text-sm">src/views/</code>.</li>
+    <li>Add your own models, services, and controllers under <code class="bg-slate-100 px-1 rounded text-sm">src/</code>.</li>
+    <li>Use the Prisma schema in <code class="bg-slate-100 px-1 rounded text-sm">prisma/schema.prisma</code> to define your database tables.</li>
+  </ul>
+</section>
+
+<section class="max-w-3xl mt-5 p-6 border border-slate-200 rounded-2xl bg-white shadow-lg" x-data="{ open: false }">
+  <button
+    @click="open = !open"
+    class="w-full flex items-center justify-between text-left bg-transparent border-0 p-0 cursor-pointer"
+  >
+    <h2 class="text-xl font-semibold">Alpine.js Demo</h2>
+    <span class="text-slate-400 text-sm" x-text="open ? 'Hide' : 'Show'">Show</span>
+  </button>
+
+  <div x-show="open" x-transition class="mt-4">
+    <p class="text-slate-500 mb-3">
+      Alpine.js is included via CDN and ready to use. This collapsible section is
+      a quick demonstration. Use <code class="bg-slate-100 px-1 rounded text-sm">x-data</code>,
+      <code class="bg-slate-100 px-1 rounded text-sm">x-show</code>,
+      <code class="bg-slate-100 px-1 rounded text-sm">@click</code>, and other
+      Alpine directives directly in your EJS templates.
+    </p>
+    <div x-data="{ count: 0 }" class="flex items-center gap-3">
+      <button
+        @click="count++"
+        class="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium cursor-pointer hover:bg-blue-700 text-sm"
+      >
+        Clicked: <span x-text="count">0</span>
+      </button>
+      <span class="text-sm text-slate-500">A simple Alpine.js counter</span>
     </div>
-  <% } else { %>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <% events.forEach((event) => { %>
-        <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <h3 class="text-lg font-semibold text-slate-900"><%= event.title %></h3>
-              <p class="text-sm text-slate-500 mt-1"><%= event.category %></p>
-            </div>
-
-            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-              <%= event.status %>
-            </span>
-          </div>
-
-          <div class="mt-4 space-y-2 text-sm text-slate-700">
-            <p>
-              <span class="font-medium">Location:</span>
-              <%= event.location %>
-            </p>
-            <p>
-              <span class="font-medium">Start:</span>
-              <%= new Date(event.startDate).toLocaleString("en-US", {
-                dateStyle: "medium",
-                timeStyle: "short"
-              }) %>
-            </p>
-            <p>
-              <span class="font-medium">End:</span>
-              <%= new Date(event.endDate).toLocaleString("en-US", {
-                dateStyle: "medium",
-                timeStyle: "short"
-                }) %>
-            </p>
-            <p>
-              <span class="font-medium">Capacity:</span>
-              <%= event.capacity %>
-            </p>
-          </div>
-
-          <div class="mt-5">
-            <a
-              href="/events/<%= event.id %>"
-              class="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
-            >
-              View Details
-            </a>
-          </div>
-        </article>
-      <% }) %>
-    </div>
-  <% } %>
+  </div>
 </section>

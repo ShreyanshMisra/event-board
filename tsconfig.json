@@ -12,10 +12,10 @@
       "node",
       "jest"
     ],
-    "isolatedModules": true,
-    "outDir": "dist"
+    "isolatedModules": true
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "test/**/*.ts"
   ]
 }
