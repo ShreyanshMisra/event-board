@@ -165,7 +165,9 @@ class EventController implements IEventController {
     const isAdmin = user.role === "admin";
 
     const canEdit = isOrganizer || isAdmin;
-    const canRsvp = event.status === "published" && !isOrganizer && !isAdmin;
+    const hasEnded = new Date(event.endDate).getTime() <= Date.now();
+    const canRsvp =
+      event.status === "published" && !isOrganizer && !isAdmin && !hasEnded;
     const canPublish = event.status === "draft" && (isOrganizer || isAdmin);
     const canCancel = event.status === "published" && (isOrganizer || isAdmin);
 
@@ -249,7 +251,9 @@ class EventController implements IEventController {
     const isAdmin = user.role === "admin";
 
     const canEdit = isOrganizer || isAdmin;
-    const canRsvp = event.status === "published" && !isOrganizer && !isAdmin;
+    const hasEnded = new Date(event.endDate).getTime() <= Date.now();
+    const canRsvp =
+      event.status === "published" && !isOrganizer && !isAdmin && !hasEnded;
     const canPublish = event.status === "draft" && (isOrganizer || isAdmin);
     const canCancel = event.status === "published" && (isOrganizer || isAdmin);
 
@@ -309,7 +313,9 @@ class EventController implements IEventController {
     const isAdmin = user.role === "admin";
 
     const canEdit = isOrganizer || isAdmin;
-    const canRsvp = event.status === "published" && !isOrganizer && !isAdmin;
+    const hasEnded = new Date(event.endDate).getTime() <= Date.now();
+    const canRsvp =
+      event.status === "published" && !isOrganizer && !isAdmin && !hasEnded;
     const canPublish = event.status === "draft" && (isOrganizer || isAdmin);
     const canCancel = event.status === "published" && (isOrganizer || isAdmin);
 

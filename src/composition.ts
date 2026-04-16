@@ -9,8 +9,12 @@ import { CreateEventController } from "./events/EventController";
 import { CreateEventService } from "./events/EventService";
 import { CreatePrismaEventRepository } from "./events/PrismaEventRepository";
 import { CreateInMemoryEventRepository } from "./events/InMemoryEventRepository";
+import { CreateInMemoryRsvpRepository } from "./rsvps/InMemoryRsvpRepository";
 import { CreateRsvpController } from "./rsvps/RsvpController";
-import { CreateRsvpService } from "./rsvps/RsvpService";
+import {
+  CreateRsvpService,
+  CreateRsvpToggleService,
+} from "./rsvps/RsvpService";
 import { CreatePrismaRsvpRepository } from "./rsvps/PrismaRsvpRepository";
 import { CreateApp } from "./app";
 import type { IApp } from "./contracts";
@@ -25,7 +29,11 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const passwordHasher = CreatePasswordHasher();
   const authService = CreateAuthService(authUsers, passwordHasher);
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
-  const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
+  const authController = CreateAuthController(
+    authService,
+    adminUserService,
+    resolvedLogger,
+  );
 
   // Event wiring
   const eventRepository = CreateInMemoryEventRepository();
@@ -36,9 +44,14 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
   const adapter = new PrismaBetterSqlite3({ url: dbUrl });
   const prisma = new PrismaClient({ adapter });
-  const rsvpRepository = CreatePrismaRsvpRepository(prisma);
-  const rsvpService = CreateRsvpService(rsvpRepository);
+  const rsvpRepository = CreateInMemoryRsvpRepository(eventRepository);
+  const rsvpService = CreateRsvpToggleService(rsvpRepository, eventRepository);
   const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
 
-  return CreateApp(authController, eventController, rsvpController, resolvedLogger);
+  return CreateApp(
+    authController,
+    eventController,
+    rsvpController,
+    resolvedLogger,
+  );
 }

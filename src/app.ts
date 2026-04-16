@@ -404,6 +404,34 @@ class ExpressApp implements IApp {
       }),
     );
 
+    this.app.get(
+      "/events/:id/rsvp-section",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.")
+              .message,
+            layout: false,
+          });
+          return;
+        }
+
+        await this.rsvpController.renderToggleSection(
+          req,
+          res,
+          currentUser.userId,
+          currentUser.role,
+          browserSession,
+        );
+      }),
+    );
+
     this.app.post(
       "/events/:id/rsvp",
       asyncHandler(async (req, res) => {
@@ -412,9 +440,21 @@ class ExpressApp implements IApp {
         }
 
         const browserSession = recordPageView(sessionStore(req));
-        await this.rsvpController.showTogglePlaceholder(
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.")
+              .message,
+            layout: false,
+          });
+          return;
+        }
+
+        await this.rsvpController.toggleFromDetailPage(
           req,
           res,
+          currentUser.userId,
+          currentUser.role,
           browserSession,
         );
       }),
