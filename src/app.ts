@@ -7,6 +7,7 @@ import { AuthenticationRequired, AuthorizationRequired } from "./auth/errors";
 import type { UserRole } from "./auth/User";
 import { IEventController } from "./events/EventController";
 import { IRsvpController } from "./rsvps/RsvpController";
+import { ISavedEventController } from "./saved/SavedEventController";
 import { IApp } from "./contracts";
 import {
   getAuthenticatedUser,
@@ -40,6 +41,7 @@ class ExpressApp implements IApp {
     private readonly authController: IAuthController,
     private readonly eventController: IEventController,
     private readonly rsvpController: IRsvpController,
+    private readonly savedEventController: ISavedEventController,
     private readonly logger: ILoggingService,
   ) {
     this.app = express();
@@ -332,6 +334,13 @@ class ExpressApp implements IApp {
     );
 
     this.app.get(
+      "/events/search",
+      asyncHandler(async (req, res) => {
+        await this.eventController.searchUpcoming(req, res);
+      }),
+    );
+
+    this.app.get(
       "/events/:id",
       asyncHandler(async (req, res) => {
         if (!this.requireAuthenticated(req, res)) {
@@ -339,7 +348,16 @@ class ExpressApp implements IApp {
         }
 
         const browserSession = recordPageView(sessionStore(req));
-        await this.eventController.showDetailPage(req, res, browserSession);
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        let isSaved = false;
+        if (currentUser?.role === "user") {
+          const savedResult = await this.savedEventController.isSaved(
+            typeof req.params.id === "string" ? req.params.id : "",
+            currentUser.userId,
+          );
+          isSaved = savedResult;
+        }
+        await this.eventController.showDetailPage(req, res, browserSession, isSaved);
       }),
     );
 
@@ -430,10 +448,46 @@ class ExpressApp implements IApp {
           return;
         }
 
+        if (currentUser.role !== "user") {
+          res.status(403).render("partials/error", {
+            message: "The RSVPs dashboard is only available to members.",
+            layout: false,
+          });
+          return;
+        }
+
         await this.rsvpController.showDashboard(
           req,
           res,
           currentUser.userId,
+          browserSession,
+        );
+      }),
+    );
+
+    this.app.get(
+      "/events/:id/rsvp-section",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.")
+              .message,
+            layout: false,
+          });
+          return;
+        }
+
+        await this.rsvpController.renderToggleSection(
+          req,
+          res,
+          currentUser.userId,
+          currentUser.role,
           browserSession,
         );
       }),
@@ -447,9 +501,21 @@ class ExpressApp implements IApp {
         }
 
         const browserSession = recordPageView(sessionStore(req));
-        await this.rsvpController.showTogglePlaceholder(
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.")
+              .message,
+            layout: false,
+          });
+          return;
+        }
+
+        await this.rsvpController.toggleFromDetailPage(
           req,
           res,
+          currentUser.userId,
+          currentUser.role,
           browserSession,
         );
       }),
@@ -471,10 +537,27 @@ class ExpressApp implements IApp {
       }),
     );
 
-    this.app.get(
-      "/events/search",
+    // ── Saved events routes ──────────────────────────────────────────
+
+    this.app.post(
+      "/events/:id/save",
       asyncHandler(async (req, res) => {
-        await this.eventController.searchUpcoming(req, res);
+        if (!this.requireRole(req, res, ["user"], "Only members can save events.")) {
+          return;
+        }
+        const browserSession = recordPageView(sessionStore(req));
+        await this.savedEventController.toggleFromDetailPage(req, res, browserSession);
+      }),
+    );
+
+    this.app.get(
+      "/saved-events",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["user"], "Only members have a saved events list.")) {
+          return;
+        }
+        const browserSession = recordPageView(sessionStore(req));
+        await this.savedEventController.showSavedList(req, res, browserSession);
       }),
     );
 
@@ -507,12 +590,14 @@ export function CreateApp(
   authController: IAuthController,
   eventController: IEventController,
   rsvpController: IRsvpController,
+  savedEventController: ISavedEventController,
   logger: ILoggingService,
 ): IApp {
   return new ExpressApp(
     authController,
     eventController,
     rsvpController,
+    savedEventController,
     logger,
   );
 }

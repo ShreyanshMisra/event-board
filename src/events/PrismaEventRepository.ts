@@ -85,6 +85,34 @@ class PrismaEventRepository implements IEventRepository {
     }
   }
 
+  async searchUpcoming(query: string): Promise<Result<IEventRecord[], EventError>> {
+    try {
+      const nowIso = new Date().toISOString();
+      const lowerQuery = query.toLowerCase();
+
+      const baseWhere: Record<string, unknown> = {
+        startDate: { gt: nowIso },
+        status: { notIn: ["cancelled", "past"] },
+      };
+
+      if (lowerQuery) {
+        baseWhere.OR = [
+          { title: { contains: lowerQuery } },
+          { description: { contains: lowerQuery } },
+          { location: { contains: lowerQuery } },
+        ];
+      }
+
+      const rows = await this.prisma.event.findMany({
+        where: baseWhere,
+        orderBy: { startDate: "asc" },
+      });
+      return Ok(rows.map(toEventRecord));
+    } catch {
+      return Err(UnexpectedEventError("Unable to search upcoming events."));
+    }
+  }
+
   async findAll(): Promise<Result<IEventRecord[], EventError>> {
     try {
       const rows = await this.prisma.event.findMany({
@@ -106,11 +134,8 @@ class PrismaEventRepository implements IEventRepository {
     try {
       const row = await this.prisma.event.update({
         where: { id },
-        data: {
-          status,
-        },
+        data: { status },
       });
-
       return Ok(toEventRecord(row));
     } catch {
       return Err(UnexpectedEventError("Unable to update event status."));
@@ -139,8 +164,6 @@ class PrismaEventRepository implements IEventRepository {
   }
 }
 
-export function CreatePrismaEventRepository(
-  prisma: PrismaClient,
-): IEventRepository {
+export function CreatePrismaEventRepository(prisma: PrismaClient): IEventRepository {
   return new PrismaEventRepository(prisma);
 }

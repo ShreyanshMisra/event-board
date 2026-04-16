@@ -1,4 +1,4 @@
-export type RsvpStatus = "going" | "not_going";
+export type RsvpStatus = "going" | "waitlisted" | "not_going";
 
 export interface IRsvpRecord {
   id: string;
@@ -20,4 +20,9 @@ export interface IRsvpWithEvent {
     endDate: string;
     status: string;
   };
+}
+
+export interface IGroupedRsvps {
+  upcoming: IRsvpWithEvent[];
+  past: IRsvpWithEvent[];
 }
