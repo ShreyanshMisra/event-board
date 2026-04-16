@@ -94,15 +94,17 @@
           </button>
         <% } %>
 
+
         <% if (canRsvp) { %>
-          <form method="post" action="/events/<%= event.id %>/rsvp">
-            <button
-              type="submit"
-              class="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
-            >
-              RSVP
-            </button>
-          </form>
+         <button
+            type="button"
+            hx-post="/events/<%= event.id %>/rsvp"
+            hx-target="#event-detail"
+            hx-swap="outerHTML"
+            class="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
+          >
+            RSVP
+        </button>
         <% } %>
       </div>
     </div>
