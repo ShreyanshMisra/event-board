@@ -50,9 +50,13 @@ class RsvpController implements IRsvpController {
       return;
     }
 
-    this.logger.info(`Loaded ${result.value.length} RSVPs for user ${userId}`);
+    const { upcoming, past } = result.value;
+    this.logger.info(
+      `Loaded ${upcoming.length + past.length} RSVPs for user ${userId}`,
+    );
     res.render("rsvps/dashboard", {
-      rsvps: result.value,
+      upcoming,
+      past,
       session,
       pageError: null,
     });

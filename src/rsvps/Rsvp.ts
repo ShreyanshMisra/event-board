@@ -21,3 +21,8 @@ export interface IRsvpWithEvent {
     status: string;
   };
 }
+
+export interface IGroupedRsvps {
+  upcoming: IRsvpWithEvent[];
+  past: IRsvpWithEvent[];
+}

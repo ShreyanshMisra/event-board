@@ -102,6 +102,53 @@ Method: findByOrganizerId(organizerId: string): Promise<Result<IEventRecord[], E
 
 ## Feature 3: Event Editing (Jay)
 
+#### `IEventService.editEvent`
+
+```
+Method: editEvent(eventId: string, input: EditEventInput, actingUserId: string, actingUserRole: UserRole): Promise<Result<IEventRecord, EventError>>
+```
+
+**Parameters:**
+- `eventId` — string, the ID of the event to edit
+- `input.title` — string, required, 1–100 chars
+- `input.description` — string, required, 1–2000 chars
+- `input.location` — string, required, 1–200 chars
+- `input.category` — string, must be a valid EventCategory
+- `input.capacity` — string (parsed to number), must be a positive integer
+- `input.startDate` — string, ISO 8601 datetime
+- `input.endDate` — string, ISO 8601 datetime, must be after startDate
+- `actingUserId` — string, the authenticated user's ID (from session)
+- `actingUserRole` — `"admin" | "staff" | "user"`, the authenticated user's role (from session)
+
+**Success:** `Ok<IEventRecord>` — the updated event record with refreshed `updatedAt`; all other fields (e.g. `status`, `organizerId`) are unchanged
+
+**Errors:**
+- `EventNotFound` — no event exists with the given `eventId`
+- `EventUnauthorized` — acting user is not the organizer and not an admin
+- `InvalidEventStateTransition` — event status is `"cancelled"` or `"past"`
+- `TitleRequired`, `TitleTooLong`, `DescriptionRequired`, `DescriptionTooLong`, `LocationRequired`, `LocationTooLong`, `CategoryRequired`, `CategoryInvalid`, `CapacityRequired`, `CapacityInvalid`, `StartDateRequired`, `StartDateInvalid`, `EndDateRequired`, `EndDateInvalid`, `EndDateBeforeStartDate` — same validation rules as `createEvent`
+- `UnexpectedEventError` — repository failure
+
+#### `IEventRepository.update`
+
+```
+Method: update(event: IEventRecord): Promise<Result<IEventRecord, EventError>>
+```
+
+**Parameters:**
+- `event` — the full `IEventRecord` with updated fields and refreshed `updatedAt`
+
+**Success:** `Ok<IEventRecord>` — the saved event record
+
+**Errors:**
+- `EventNotFound` — no event exists with the given `id`
+- `UnexpectedEventError` — repository failure
+
+#### Routes
+
+- `GET /events/:id/edit` — Auth: `staff` or `admin`. Renders pre-populated edit form. Returns 403 if user is a member, 400 if event is cancelled or past, 404 if event not found.
+- `POST /events/:id/edit` — Auth: `staff` or `admin`. Submits edits. On success redirects to `/events/:id`. On validation failure re-renders the form with the error message.
+
 ## Feature 4: My RSVPs Dashboard (Shrey)
 
 #### Types
@@ -195,3 +242,86 @@ type RsvpError =
 ## Feature 7: Catagory and Date Filter (Karl)
 
 ## Feature 8: Save for Later (Jay)
+
+#### Types
+
+```ts
+interface ISavedEventRecord {
+  id: string;
+  userId: string;
+  eventId: string;
+  createdAt: string;   // ISO 8601
+}
+
+interface ISavedEventWithEvent {
+  saved: ISavedEventRecord;
+  event: {
+    id: string;
+    title: string;
+    location: string;
+    category: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+  };
+}
+```
+
+#### `ISavedEventRepository`
+
+```ts
+interface ISavedEventRepository {
+  findByUserId(userId: string): Promise<Result<ISavedEventWithEvent[], SavedEventError>>;
+  findByUserIdAndEventId(userId: string, eventId: string): Promise<Result<ISavedEventRecord | null, SavedEventError>>;
+  save(record: ISavedEventRecord): Promise<Result<ISavedEventRecord, SavedEventError>>;
+  unsave(userId: string, eventId: string): Promise<Result<void, SavedEventError>>;
+}
+```
+
+#### `ISavedEventService.toggleSaved`
+
+```
+Method: toggleSaved(eventId: string, actingUserId: string, actingUserRole: UserRole): Promise<Result<{ saved: boolean }, SavedEventError>>
+```
+
+**Parameters:**
+- `eventId` — string, the ID of the event to save or unsave
+- `actingUserId` — string, the authenticated user's ID (from session)
+- `actingUserRole` — `"admin" | "staff" | "user"`, the authenticated user's role (from session)
+
+**Success:** `Ok<{ saved: boolean }>` — `saved: true` if the event was just saved, `saved: false` if it was just unsaved
+
+**Errors:**
+- `SavedEventUnauthorized` — acting user is not a member (role is `"admin"` or `"staff"`)
+- `EventNotFound` — no event exists with the given `eventId`
+- `UnexpectedSavedEventError` — repository failure
+
+#### `ISavedEventService.listSaved`
+
+```
+Method: listSaved(actingUserId: string, actingUserRole: UserRole): Promise<Result<ISavedEventWithEvent[], SavedEventError>>
+```
+
+**Parameters:**
+- `actingUserId` — string, the authenticated user's ID (from session)
+- `actingUserRole` — the authenticated user's role (from session)
+
+**Success:** `Ok<ISavedEventWithEvent[]>` — all saved events for the user joined with event details (may be empty)
+
+**Errors:**
+- `SavedEventUnauthorized` — acting user is not a member (role is `"admin"` or `"staff"`)
+- `UnexpectedSavedEventError` — repository failure
+
+#### Routes
+
+- `POST /events/:id/save` — Auth: `user` role only. Toggles saved state for the event. Responds inline (HTMX) with an updated save/unsave button reflecting the new state. Returns 403 for staff/admin, 404 if event not found.
+- `GET /saved-events` — Auth: `user` role only. Renders the member's saved events list. Returns 403 for staff/admin.
+
+#### Errors
+
+```ts
+type SavedEventError =
+  | { name: "EventNotFound"; message: string }
+  | { name: "SavedEventUnauthorized"; message: string }
+  | { name: "UnexpectedSavedEventError"; message: string };
+```

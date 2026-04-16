@@ -1,6 +1,6 @@
 import type { Result } from "../lib/result";
 import type { RsvpError } from "./errors";
-import type { IRsvpWithEvent } from "./Rsvp";
+import type { IGroupedRsvps, IRsvpWithEvent } from "./Rsvp";
 import type { IRsvpRepository } from "./RsvpRepository";
 
 import { randomUUID } from "node:crypto";
@@ -15,7 +15,7 @@ import {
 import type { IRsvpRecord, RsvpStatus } from "./Rsvp";
 
 export interface IRsvpService {
-  listUserRsvps(userId: string): Promise<Result<IRsvpWithEvent[], RsvpError>>;
+  listUserRsvps(userId: string): Promise<Result<IGroupedRsvps, RsvpError>>;
 }
 
 class RsvpService implements IRsvpService {
@@ -23,8 +23,44 @@ class RsvpService implements IRsvpService {
 
   async listUserRsvps(
     userId: string,
-  ): Promise<Result<IRsvpWithEvent[], RsvpError>> {
-    return this.rsvps.findByUserId(userId);
+  ): Promise<Result<IGroupedRsvps, RsvpError>> {
+    const result = await this.rsvps.findByUserId(userId);
+
+    if (result.ok === false) {
+      return result;
+    }
+
+    const now = Date.now();
+    const active = result.value.filter((r) => r.rsvp.status !== "not_going");
+
+    const upcoming: IRsvpWithEvent[] = [];
+    const past: IRsvpWithEvent[] = [];
+
+    for (const item of active) {
+      const eventEnded = new Date(item.event.endDate).getTime() <= now;
+      const isUpcoming =
+        item.event.status === "published" && !eventEnded;
+
+      if (isUpcoming) {
+        upcoming.push(item);
+      } else {
+        past.push(item);
+      }
+    }
+
+    upcoming.sort(
+      (a, b) =>
+        new Date(a.event.startDate).getTime() -
+        new Date(b.event.startDate).getTime(),
+    );
+
+    past.sort(
+      (a, b) =>
+        new Date(b.event.startDate).getTime() -
+        new Date(a.event.startDate).getTime(),
+    );
+
+    return Ok({ upcoming, past });
   }
 }
 
@@ -61,7 +97,7 @@ class RsvpToggleService implements IRsvpToggleService {
 
   async listUserRsvps(
     userId: string,
-  ): Promise<Result<IRsvpWithEvent[], RsvpError>> {
+  ): Promise<Result<IGroupedRsvps, RsvpError>> {
     return this.base.listUserRsvps(userId);
   }
 
