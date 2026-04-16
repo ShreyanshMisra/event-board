@@ -38,19 +38,25 @@ class InMemoryEventRepository implements IEventRepository {
       return Err(UnexpectedEventError("Unable to list events."));
     }
   }
-    async findUpcoming(): Promise<Result<IEventRecord[], EventError>> {
-    const now = Date.now();
 
-    const matches = this.events
-      .filter(
-        (event) =>
-          new Date(event.startDate).getTime() > now &&
-          event.status !== "cancelled" &&
-          event.status !== "past",
-      )
-      .map((event) => ({ ...event }));
+  async findUpcoming(): Promise<Result<IEventRecord[], EventError>> {
+    try {
+      const now = Date.now();
 
-    return Ok(matches);
+      const matches = this.events
+        .filter((event) => new Date(event.startDate).getTime() > now)
+        .sort(
+          (a, b) =>
+            new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+        )
+        .map((event) => ({ ...event }));
+
+      return Ok(matches);
+    } catch {
+      return Err(UnexpectedEventError("Unable to list upcoming events."));
+    }
+  }
+
   async findAll(): Promise<Result<IEventRecord[], EventError>> {
     return Ok(this.events);
   }
@@ -75,7 +81,6 @@ class InMemoryEventRepository implements IEventRepository {
     return Ok(updated);
   }
 }
-
 
 export function CreateInMemoryEventRepository(): IEventRepository {
   return new InMemoryEventRepository();

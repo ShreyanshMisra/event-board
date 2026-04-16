@@ -100,6 +100,25 @@ class EventController implements IEventController {
 
     res.redirect("/home");
   }
+
+  async searchUpcoming(req: Request, res: Response): Promise<void> {
+    const query = typeof req.query.q === "string" ? req.query.q : "";
+    const result = await this.service.searchUpcoming(query);
+
+    if (result.ok === false) {
+      res.status(500).render("partials/error", {
+        message: result.value.message,
+        layout: false,
+      });
+      return;
+    }
+
+    res.render("events/partials/list", {
+      events: result.value,
+      layout: false,
+    });
+  }
+
   async showDetailPage(
     req: Request,
     res: Response,
