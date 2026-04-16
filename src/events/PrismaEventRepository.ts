@@ -85,6 +85,34 @@ class PrismaEventRepository implements IEventRepository {
     }
   }
 
+  async searchUpcoming(query: string): Promise<Result<IEventRecord[], EventError>> {
+    try {
+      const nowIso = new Date().toISOString();
+      const lowerQuery = query.toLowerCase();
+
+      const baseWhere: Record<string, unknown> = {
+        startDate: { gt: nowIso },
+        status: "published",
+      };
+
+      if (lowerQuery) {
+        baseWhere.OR = [
+          { title: { contains: lowerQuery } },
+          { description: { contains: lowerQuery } },
+          { location: { contains: lowerQuery } },
+        ];
+      }
+
+      const rows = await this.prisma.event.findMany({
+        where: baseWhere,
+        orderBy: { startDate: "asc" },
+      });
+      return Ok(rows.map(toEventRecord));
+    } catch {
+      return Err(UnexpectedEventError("Unable to search upcoming events."));
+    }
+  }
+
   async findAll(): Promise<Result<IEventRecord[], EventError>> {
     try {
       const rows = await this.prisma.event.findMany({

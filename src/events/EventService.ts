@@ -19,6 +19,7 @@ import {
   UnexpectedEventError,
   type EventError,
   InvalidEventStateTransition,
+  InvalidSearchInput,
   EventUnauthorized,
   EventNotFound,
 } from "./errors";
@@ -183,26 +184,20 @@ class EventService implements IEventService {
   async searchUpcoming(
     query: string,
   ): Promise<Result<IEventSummary[], EventError>> {
-    const result = await this.events.findUpcoming();
+    const trimmedQuery = query.trim();
+
+    if (trimmedQuery.length > 200) {
+      return Err(
+        InvalidSearchInput("Search query must be 200 characters or fewer."),
+      );
+    }
+
+    const result = await this.events.searchUpcoming(trimmedQuery);
     if (result.ok === false) {
       return result;
     }
 
-    const trimmedQuery = query.trim().toLowerCase();
-
-    if (!trimmedQuery) {
-      return Ok(result.value.map(toEventSummary));
-    }
-
-    const matches = result.value.filter((event) => {
-      return (
-        event.title.toLowerCase().includes(trimmedQuery) ||
-        event.description.toLowerCase().includes(trimmedQuery) ||
-        event.location.toLowerCase().includes(trimmedQuery)
-      );
-    });
-
-    return Ok(matches.map(toEventSummary));
+    return Ok(result.value.map(toEventSummary));
   }
   async findById(
     id: string,

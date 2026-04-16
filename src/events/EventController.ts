@@ -118,7 +118,8 @@ class EventController implements IEventController {
     const result = await this.service.searchUpcoming(query);
 
     if (result.ok === false) {
-      res.status(500).render("partials/error", {
+      const status = result.value.name === "InvalidSearchInput" ? 400 : 500;
+      res.status(status).render("partials/error", {
         message: result.value.message,
         layout: false,
       });
