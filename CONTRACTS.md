@@ -239,7 +239,7 @@ type RsvpError =
 
 ## Feature 6: Event Search (Than) 
 
-## Feature 7: Catagory and Date Filter (Karl)
+## Feature 7: Publish and Cancel Events (Karl)
 
 ## Feature 8: Save for Later (Jay)
 
