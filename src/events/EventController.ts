@@ -23,6 +23,7 @@ export interface IEventController {
     req: Request,
     res: Response,
     session: IAppBrowserSession,
+    isSaved?: boolean,
   ): Promise<void>;
   showHomePage(res: Response, session: IAppBrowserSession): Promise<void>;
   publishFromDetailPage(
@@ -135,6 +136,7 @@ class EventController implements IEventController {
     req: Request,
     res: Response,
     session: IAppBrowserSession,
+    isSaved: boolean = false,
   ): Promise<void> {
     const eventId = req.params.id as string;
 
@@ -181,6 +183,8 @@ class EventController implements IEventController {
     const canPublish = event.status === "draft" && (isOrganizer || isAdmin);
     const canCancel = event.status === "published" && (isOrganizer || isAdmin);
 
+    const canSave = event.status === "published" && user.role === "user";
+
     res.render("events/detail", {
       event,
       session,
@@ -189,6 +193,8 @@ class EventController implements IEventController {
       canRsvp,
       canPublish,
       canCancel,
+      canSave,
+      isSaved,
     });
   }
 

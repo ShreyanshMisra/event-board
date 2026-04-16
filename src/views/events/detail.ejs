@@ -94,6 +94,10 @@
           </button>
         <% } %>
 
+        <% if (canSave) { %>
+          <%- include("../saved/partials/save-button", { eventId: event.id, isSaved }) %>
+        <% } %>
+
         <% if (canRsvp) { %>
           <form method="post" action="/events/<%= event.id %>/rsvp">
             <button
