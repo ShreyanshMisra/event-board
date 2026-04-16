@@ -375,6 +375,41 @@ class ExpressApp implements IApp {
       }),
     );
 
+    this.app.get(
+      "/events/:id/edit",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["staff", "admin"], "Only organizers can edit events.")) {
+          return;
+        }
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.showEditForm(req, res, browserSession);
+      }),
+    );
+
+    this.app.post(
+      "/events/:id/edit",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["staff", "admin"], "Only organizers can edit events.")) {
+          return;
+        }
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.updateFromForm(
+          req,
+          res,
+          {
+            title: typeof req.body.title === "string" ? req.body.title : "",
+            description: typeof req.body.description === "string" ? req.body.description : "",
+            location: typeof req.body.location === "string" ? req.body.location : "",
+            category: typeof req.body.category === "string" ? req.body.category : "",
+            capacity: typeof req.body.capacity === "string" ? req.body.capacity : "",
+            startDate: typeof req.body.startDate === "string" ? req.body.startDate : "",
+            endDate: typeof req.body.endDate === "string" ? req.body.endDate : "",
+          },
+          browserSession,
+        );
+      }),
+    );
+
     // ── RSVP routes ────────────────────────────────────────────────
 
     this.app.get(
