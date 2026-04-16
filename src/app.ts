@@ -437,6 +437,14 @@ class ExpressApp implements IApp {
           return;
         }
 
+        if (currentUser.role !== "user") {
+          res.status(403).render("partials/error", {
+            message: "The RSVPs dashboard is only available to members.",
+            layout: false,
+          });
+          return;
+        }
+
         await this.rsvpController.showDashboard(
           req,
           res,
