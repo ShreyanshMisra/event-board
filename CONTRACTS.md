@@ -8,16 +8,7 @@ What we are commiting to expose as a part of each feature
 
 ```ts
 type EventStatus = "draft" | "published" | "cancelled" | "past";
-
-type EventCategory =
-  | "academic"
-  | "social"
-  | "sports"
-  | "club"
-  | "career"
-  | "arts"
-  | "volunteer"
-  | "other";
+type EventCategory = "academic" | "social" | "sports" | "club" | "career" | "arts" | "volunteer" | "other";
 ```
 
 #### IEventRecord
@@ -39,64 +30,33 @@ interface IEventRecord {
 }
 ```
 
-#### IEventSummary
-
-```ts
-interface IEventSummary {
-  id: string;
-  title: string;
-  location: string;
-  category: EventCategory;
-  capacity: number;
-  startDate: string;
-  endDate: string;
-  status: EventStatus;
-}
-```
-
 #### `IEventService.createEvent`
 
 ```
 Method: createEvent(input: CreateEventInput, organizerId: string): Promise<Result<IEventRecord, EventError>>
 ```
 
-**Parameters:**
-- `input.title` — string, required, 1–100 chars
-- `input.description` — string, required, 1–2000 chars
-- `input.location` — string, required, 1–200 chars
-- `input.category` — string, must be a valid EventCategory
-- `input.capacity` — string (parsed to number), must be a positive integer
-- `input.startDate` — string, ISO 8601 datetime
-- `input.endDate` — string, ISO 8601 datetime, must be after startDate
-- `organizerId` — string, the authenticated user's ID (from session)
+**Parameters:** `title` (1–100), `description` (1–2000), `location` (1–200), `category` (valid EventCategory), `capacity` (positive integer), `startDate`/`endDate` (ISO 8601, end must be after start). `organizerId` comes from the session.
 
-**Success:** `Ok<IEventRecord>` — the full event record with `status: "draft"`, generated `id`, `createdAt`, `updatedAt`
+**Success:** `Ok<IEventRecord>` — status `"draft"`, generated `id`, `createdAt`, `updatedAt`
 
-**Errors:**
-- `EventValidationError` — any field is empty, too long, invalid category, non-positive capacity, or dates are invalid/misordered
-- `UnexpectedEventError` — repository failure
+**Errors:** Named error per validation rule (`TitleRequired`, `TitleTooLong`, `DescriptionRequired`, `DescriptionTooLong`, `LocationRequired`, `LocationTooLong`, `CategoryRequired`, `CategoryInvalid`, `CapacityRequired`, `CapacityInvalid`, `StartDateRequired`, `StartDateInvalid`, `EndDateRequired`, `EndDateInvalid`, `EndDateBeforeStartDate`), plus `UnexpectedEventError` for repository failures.
 
 #### `IEventRepository.findById` (shared — needed by Features 2, 3, 5, 8)
 
 ```
-Method: findById(id: string): Promise<Result<IEventRecord | null, EventError>>
+Method: findById(id: string, userRole: UserRole): Promise<Result<IEventRecord | null, EventError>>
 ```
 
-**Success:** `Ok<IEventRecord | null>` — the event if found, `null` if not
+Returns the event if found, `null` otherwise. Errors: `UnexpectedEventError`.
 
-**Errors:**
-- `UnexpectedEventError` — repository failure
-
-#### `IEventRepository.findByOrganizerId` (shared — needed by organizer dashboards)
+#### `IEventRepository.findByOrganizerId` (shared)
 
 ```
 Method: findByOrganizerId(organizerId: string): Promise<Result<IEventRecord[], EventError>>
 ```
 
-**Success:** `Ok<IEventRecord[]>` — all events by that organizer (may be empty)
-
-**Errors:**
-- `UnexpectedEventError` — repository failure
+Returns all events by that organizer (may be empty). Errors: `UnexpectedEventError`.
 
 ## Feature 2: Event Detail Page (Karl)
 
@@ -154,7 +114,7 @@ Method: update(event: IEventRecord): Promise<Result<IEventRecord, EventError>>
 #### Types
 
 ```ts
-type RsvpStatus = "going" | "not_going";
+type RsvpStatus = "going" | "waitlisted" | "not_going";
 
 interface IRsvpRecord {
   id: string;
@@ -167,31 +127,23 @@ interface IRsvpRecord {
 
 interface IRsvpWithEvent {
   rsvp: IRsvpRecord;
-  event: {
-    id: string;
-    title: string;
-    location: string;
-    category: string;
-    startDate: string;
-    endDate: string;
-    status: string;
-  };
+  event: { id: string; title: string; location: string; category: string; startDate: string; endDate: string; status: string; };
+}
+
+interface IGroupedRsvps {
+  upcoming: IRsvpWithEvent[];  // published + not ended, sorted by startDate asc
+  past: IRsvpWithEvent[];      // ended or cancelled, sorted by startDate desc
 }
 ```
 
-#### `IRsvpRepository` (shared contract — used by Features 4 and 5)
+#### `IRsvpRepository` (shared — used by Features 4 and 5)
 
 ```ts
 interface IRsvpRepository {
-  // Feature 4 reads
   findByUserId(userId: string): Promise<Result<IRsvpWithEvent[], RsvpError>>;
   findByUserIdAndEventId(userId: string, eventId: string): Promise<Result<IRsvpRecord | null, RsvpError>>;
-
-  // Feature 5 writes
   upsert(rsvp: IRsvpRecord): Promise<Result<IRsvpRecord, RsvpError>>;
   delete(userId: string, eventId: string): Promise<Result<void, RsvpError>>;
-
-  // Shared
   countByEventId(eventId: string): Promise<Result<number, RsvpError>>;
 }
 ```
@@ -199,21 +151,18 @@ interface IRsvpRepository {
 #### `IRsvpService.listUserRsvps`
 
 ```
-Method: listUserRsvps(userId: string): Promise<Result<IRsvpWithEvent[], RsvpError>>
+Method: listUserRsvps(userId: string): Promise<Result<IGroupedRsvps, RsvpError>>
 ```
 
-**Parameters:**
-- `userId` — string, the authenticated user's ID (from session)
+Filters out `not_going` RSVPs, groups the rest into `upcoming` (published events whose `endDate > now`) and `past` (ended/cancelled events). Each group is sorted by `startDate`.
 
-**Success:** `Ok<IRsvpWithEvent[]>` — all RSVPs for the user joined with event details (may be empty)
-
-**Errors:**
-- `UnexpectedRsvpError` — repository failure
+**Errors:** `UnexpectedRsvpError`
 
 #### Route: `GET /my-rsvps`
 
-- **Auth:** Requires authenticated user (any role)
-- **Success:** Renders dashboard with list of user's RSVPs
+- **Auth:** `user` role only (staff/admin get 403)
+- **Success:** Renders dashboard with "Upcoming" and "Past & Cancelled" sections
+- **Upcoming rows** include an HTMX cancel button (`hx-post="/events/:id/rsvp"`) reusing the toggle route
 - **Empty state:** "You haven't RSVP'd to any events yet."
 
 #### Errors
@@ -229,12 +178,12 @@ type RsvpError =
 
 ## Feature 5: RSVP Toggle (Than)
 
-#### Stub Route: `POST /events/:id/rsvp`
+#### Route: `POST /events/:id/rsvp`
 
-- **Auth:** Requires authenticated user (any role)
-- **Current:** Renders placeholder page ("under construction")
-- **Shared contract:** Uses `IRsvpRepository` defined in Feature 4 (see above)
-- **Methods to use:** `upsert`, `delete`, `findByUserIdAndEventId`, `countByEventId`
+- **Auth:** `user` role only (staff/admin rejected)
+- **Behavior:** Toggles RSVP status — going/waitlisted → not_going, not_going/none → going (or waitlisted if at capacity)
+- **HTMX:** Returns updated toggle partial with button + attendee count
+- **Shared contract:** Uses `IRsvpRepository` defined in Feature 4
 
 
 ## Feature 6: Event Search (Than) 
