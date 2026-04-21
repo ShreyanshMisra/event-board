@@ -1,6 +1,9 @@
 import request from "supertest";
 import { createComposedApp } from "../../src/composition";
 
+// NOTE: createComposedApp() is constructed once per test file, so userCookie
+// accumulates RSVPs across nested describe blocks below. New tests should
+// either use unique titles to avoid collisions, or rebuild the app per test.
 const app = createComposedApp().getExpressApp();
 
 async function loginAs(email: string, password: string): Promise<string> {
@@ -247,16 +250,110 @@ describe("My RSVPs Dashboard — integration", () => {
         .set("Cookie", userCookie);
       expect(res.text).not.toContain("Cancellable Seminar");
     });
+
+    it("returns the rsvp-section partial on inline HTMX cancel", async () => {
+      const eventId = await createEvent(staffCookie, {
+        title: "Inline HTMX Cancel Event",
+        startDate: "2028-01-10T10:00",
+        endDate: "2028-01-10T12:00",
+      });
+      await publishEvent(staffCookie, eventId);
+      await rsvpToEvent(userCookie, eventId);
+
+      const res = await request(app)
+        .post(`/events/${eventId}/rsvp`)
+        .set("Cookie", userCookie)
+        .set("HX-Request", "true")
+        .type("form")
+        .send({});
+
+      expect(res.status).toBe(200);
+      // Body must be a partial (no full HTML page) suitable for outerHTML swap
+      expect(res.text).not.toContain("<html");
+      expect(res.text).toContain('id="rsvp-section"');
+      // After cancel, the toggle button reverts to "RSVP"
+      expect(res.text).toMatch(/>\s*RSVP\s*</);
+    });
+  });
+
+  // ── Past section sort order ────────────────────────────────────────
+
+  describe("past section sorting", () => {
+    let earlyId: string;
+    let lateId: string;
+
+    beforeAll(async () => {
+      earlyId = await createEvent(staffCookie, {
+        title: "Early Past Seminar",
+        startDate: "2028-02-01T10:00",
+        endDate: "2028-02-01T12:00",
+      });
+      lateId = await createEvent(staffCookie, {
+        title: "Late Past Seminar",
+        startDate: "2028-08-01T10:00",
+        endDate: "2028-08-01T12:00",
+      });
+      await publishEvent(staffCookie, earlyId);
+      await publishEvent(staffCookie, lateId);
+      await rsvpToEvent(userCookie, earlyId);
+      await rsvpToEvent(userCookie, lateId);
+      // Cancel both to push them into the Past & Cancelled section
+      await request(app)
+        .post(`/events/${earlyId}/cancel`)
+        .set("Cookie", staffCookie)
+        .type("form")
+        .send({});
+      await request(app)
+        .post(`/events/${lateId}/cancel`)
+        .set("Cookie", staffCookie)
+        .type("form")
+        .send({});
+    });
+
+    it("sorts past RSVPs by startDate descending", async () => {
+      const res = await request(app)
+        .get("/my-rsvps")
+        .set("Cookie", userCookie);
+      expect(res.status).toBe(200);
+
+      const pastHeader = res.text.indexOf("Past & Cancelled");
+      expect(pastHeader).toBeGreaterThan(-1);
+
+      // Search starts at the past-section header so we ignore any earlier
+      // sections; both events are cancelled so both must live below it.
+      const latePos = res.text.indexOf("Late Past Seminar", pastHeader);
+      const earlyPos = res.text.indexOf("Early Past Seminar", pastHeader);
+
+      expect(latePos).toBeGreaterThan(-1);
+      expect(earlyPos).toBeGreaterThan(-1);
+      // Aug should come before Feb in descending order
+      expect(latePos).toBeLessThan(earlyPos);
+    });
   });
 
   // ── Waitlisted RSVPs ──────────────────────────────────────────────
 
   describe("waitlisted RSVPs", () => {
     let fullEventId: string;
-    let secondUserCookie: string;
+    let firstMemberCookie: string;
 
     beforeAll(async () => {
-      // Create an event with capacity 1
+      // Create a second member via the admin route so we can fill the only
+      // capacity slot before userCookie RSVPs and ends up waitlisted.
+      const newMemberEmail = `waitlist-test-${Date.now()}@app.test`;
+      await request(app)
+        .post("/admin/users")
+        .set("Cookie", adminCookie)
+        .type("form")
+        .send({
+          email: newMemberEmail,
+          displayName: "Waitlist Tester",
+          password: "password123",
+          role: "user",
+        });
+      firstMemberCookie = await loginAs(newMemberEmail, "password123");
+
+      // Capacity-1 event so the second RSVP must be waitlisted.
       fullEventId = await createEvent(staffCookie, {
         title: "Tiny Workshop",
         capacity: "1",
@@ -265,16 +362,18 @@ describe("My RSVPs Dashboard — integration", () => {
       });
       await publishEvent(staffCookie, fullEventId);
 
-      // First user takes the only spot
+      // First member takes the only spot, then userCookie waitlists.
+      await rsvpToEvent(firstMemberCookie, fullEventId);
       await rsvpToEvent(userCookie, fullEventId);
     });
 
-    it("shows waitlisted RSVP in upcoming section", async () => {
+    it("shows waitlisted RSVP in upcoming section with the Waitlisted badge", async () => {
       const res = await request(app)
         .get("/my-rsvps")
         .set("Cookie", userCookie);
       expect(res.status).toBe(200);
       expect(res.text).toContain("Tiny Workshop");
+      expect(res.text).toContain("Waitlisted");
     });
   });
 });
