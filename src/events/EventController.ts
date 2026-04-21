@@ -106,7 +106,7 @@ class EventController implements IEventController {
     const result = await this.service.searchUpcoming(query);
 
     if (result.ok === false) {
-      res.status(500).render("partials/error", {
+      res.status(this.mapErrorStatus(result.value)).render("partials/error", {
         message: result.value.message,
         layout: false,
       });

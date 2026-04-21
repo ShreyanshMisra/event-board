@@ -21,6 +21,7 @@ import {
   InvalidEventStateTransition,
   EventUnauthorized,
   EventNotFound,
+  SearchQueryInvalid,
 } from "./errors";
 import {
   EVENT_CATEGORIES,
@@ -183,6 +184,12 @@ class EventService implements IEventService {
 
     const now = Date.now();
     const normalizedQuery = query.trim().toLowerCase();
+
+    if (normalizedQuery.length > 200) {
+      return Err(
+        SearchQueryInvalid("Search query must be 200 characters or fewer."),
+      );
+    }
 
     const publishedUpcoming = result.value.filter((event) => {
       return (
