@@ -274,7 +274,8 @@ class EventController implements IEventController {
       event.status === "published" && !isOrganizer && !isAdmin && !hasEnded;
     const canPublish = event.status === "draft" && (isOrganizer || isAdmin);
     const canCancel = event.status === "published" && (isOrganizer || isAdmin);
-
+    
+    const canSave = event.status === "published" && user.role === "user";
     if (isHtmx) {
       res.render("events/detail", {
         event,
@@ -284,6 +285,7 @@ class EventController implements IEventController {
         canRsvp,
         canPublish,
         canCancel,
+        canSave,
         layout: false,
       });
       return;
@@ -336,7 +338,8 @@ class EventController implements IEventController {
       event.status === "published" && !isOrganizer && !isAdmin && !hasEnded;
     const canPublish = event.status === "draft" && (isOrganizer || isAdmin);
     const canCancel = event.status === "published" && (isOrganizer || isAdmin);
-
+    
+    const canSave = event.status === "published" && user.role === "user";
     if (isHtmx) {
       res.render("events/detail", {
         event,
@@ -346,6 +349,7 @@ class EventController implements IEventController {
         canRsvp,
         canPublish,
         canCancel,
+        canSave,
         layout: false,
       });
       return;

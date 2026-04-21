@@ -69,12 +69,18 @@
                 <%= event.location %>
               </p>
               <p>
-                <span class="font-medium">Start:</span>
-                <%= event.startDate %>
+                  <span class="font-medium">Start:</span>
+                  <%= new Date(event.startDate).toLocaleString(undefined, {
+                    dateStyle: "medium",
+                    timeStyle: "short"
+                  }) %>
               </p>
               <p>
-                <span class="font-medium">End:</span>
-                <%= event.endDate %>
+                  <span class="font-medium">Start:</span>
+                  <%= new Date(event.startDate).toLocaleString(undefined, {
+                    dateStyle: "medium",
+                    timeStyle: "short"
+                  }) %>
               </p>
               <p>
                 <span class="font-medium">Capacity:</span>
