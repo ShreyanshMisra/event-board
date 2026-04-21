@@ -8,8 +8,11 @@ import type { UserRole } from "../auth/User";
 import type { IEventRepository } from "../events/EventRepository";
 import { Err, Ok } from "../lib/result";
 import {
+  EventClosedForRsvp,
   EventNotFound,
-  InvalidRsvpStatus,
+  EventNotPublishedForRsvp,
+  OwnEventRsvpForbidden,
+  RsvpForbiddenRole,
   UnexpectedRsvpError,
 } from "./errors";
 import type { IRsvpRecord, RsvpStatus } from "./Rsvp";
@@ -199,7 +202,7 @@ class RsvpToggleService implements IRsvpToggleService {
     eventId: string,
   ): Promise<Result<{ capacity: number; organizerId: string }, RsvpError>> {
     if (userRole !== "user") {
-      return Err(InvalidRsvpStatus("Only members can RSVP to events."));
+      return Err(RsvpForbiddenRole("Only members can RSVP to events."));
     }
 
     const eventResult = await this.events.findById(eventId, userRole);
@@ -215,13 +218,21 @@ class RsvpToggleService implements IRsvpToggleService {
     }
 
     if (event.organizerId === userId) {
-      return Err(InvalidRsvpStatus("You cannot RSVP to your own event."));
+      return Err(OwnEventRsvpForbidden("You cannot RSVP to your own event."));
     }
 
-    const hasEnded = new Date(event.endDate).getTime() <= Date.now();
+    if (event.status === "cancelled") {
+      return Err(EventClosedForRsvp("You cannot RSVP to a cancelled event."));
+    }
 
-    if (event.status !== "published" || hasEnded) {
-      return Err(InvalidRsvpStatus("You cannot RSVP to this event."));
+    if (event.status === "past" || new Date(event.endDate).getTime() <= Date.now()) {
+      return Err(EventClosedForRsvp("You cannot RSVP to a past event."));
+    }
+
+    if (event.status !== "published") {
+      return Err(
+        EventNotPublishedForRsvp("You can only RSVP to published events."),
+      );
     }
 
     return Ok({
