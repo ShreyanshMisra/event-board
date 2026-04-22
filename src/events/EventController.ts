@@ -59,6 +59,7 @@ class EventController implements IEventController {
 
   private mapErrorStatus(error: EventError): number {
     if (error.name === "EventNotFound") return 404;
+    if (error.name === "EventUnauthorized") return 403;
     if (error.name === "UnexpectedEventError") return 500;
     return 400;
   }
