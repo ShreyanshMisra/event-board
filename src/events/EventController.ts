@@ -121,7 +121,7 @@ class EventController implements IEventController {
     const result = await this.service.searchUpcoming(query);
 
     if (result.ok === false) {
-      res.status(500).render("partials/error", {
+      res.status(this.mapErrorStatus(result.value)).render("partials/error", {
         message: result.value.message,
         layout: false,
       });
@@ -276,7 +276,8 @@ class EventController implements IEventController {
       event.status === "published" && !isOrganizer && !isAdmin && !hasEnded;
     const canPublish = event.status === "draft" && (isOrganizer || isAdmin);
     const canCancel = event.status === "published" && (isOrganizer || isAdmin);
-
+    
+    const canSave = event.status === "published" && user.role === "user";
     if (isHtmx) {
       res.render("events/detail", {
         event,
@@ -286,6 +287,7 @@ class EventController implements IEventController {
         canRsvp,
         canPublish,
         canCancel,
+        canSave,
         layout: false,
       });
       return;
@@ -338,7 +340,8 @@ class EventController implements IEventController {
       event.status === "published" && !isOrganizer && !isAdmin && !hasEnded;
     const canPublish = event.status === "draft" && (isOrganizer || isAdmin);
     const canCancel = event.status === "published" && (isOrganizer || isAdmin);
-
+    
+    const canSave = event.status === "published" && user.role === "user";
     if (isHtmx) {
       res.render("events/detail", {
         event,
@@ -348,6 +351,7 @@ class EventController implements IEventController {
         canRsvp,
         canPublish,
         canCancel,
+        canSave,
         layout: false,
       });
       return;

@@ -1,6 +1,10 @@
 import request from "supertest";
 import { createComposedApp } from "../../src/composition";
 
+// NOTE: createComposedApp() is constructed once per test file, so all tests
+// in this file share the same in-memory state. That is fine today because
+// nothing here asserts on counts; if you add stateful assertions, rebuild
+// the app per test (e.g. inside beforeEach) to keep tests independent.
 const app = createComposedApp().getExpressApp();
 
 /**
@@ -327,4 +331,93 @@ describe("Event Creation — integration", () => {
     // Should be the partial only — no full page layout (no <html> tag)
     expect(res.text).not.toContain("<html");
   });
+
+  // ── Whitespace handling ────────────────────────────────────────────
+
+  it("returns 400 when title is only whitespace", async () => {
+    const res = await request(app)
+      .post("/events")
+      .set("Cookie", staffCookie)
+      .type("form")
+      .send({ ...validEventBody(), title: "   " });
+
+    expect(res.status).toBe(400);
+    expect(res.text).toContain("Title is required");
+  });
+
+  // ── Admin role allowlist ───────────────────────────────────────────
+
+  it("allows admin users to create events", async () => {
+    const adminCookie = await loginAs("admin@app.test", "password123");
+
+    const res = await request(app)
+      .post("/events")
+      .set("Cookie", adminCookie)
+      .type("form")
+      .send(validEventBody());
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe("/home");
+  });
+
+  // ── Persistence & status invariants ────────────────────────────────
+
+  it("creates the event in draft status and makes it retrievable", async () => {
+    const uniqueTitle = `Draft-Status-Check-${Date.now()}`;
+    await request(app)
+      .post("/events")
+      .set("Cookie", staffCookie)
+      .type("form")
+      .send({ ...validEventBody(), title: uniqueTitle });
+
+    const home = await request(app).get("/home").set("Cookie", staffCookie);
+    const match = home.text.match(
+      new RegExp(`${uniqueTitle}[\\s\\S]*?/events/([0-9a-f-]{36})`),
+    );
+    expect(match).not.toBeNull();
+    const eventId = (match as RegExpMatchArray)[1];
+
+    const detail = await request(app)
+      .get(`/events/${eventId}`)
+      .set("Cookie", staffCookie);
+
+    expect(detail.status).toBe(200);
+    expect(detail.text).toContain(uniqueTitle);
+    // Status field on the detail page renders the literal status string
+    expect(detail.text).toContain("draft");
+  });
+
+  // ── Organizer identity comes from session, not from the form ───────
+
+  it("ignores organizerId in the body and uses the session user", async () => {
+    const uniqueTitle = `Organizer-Spoof-Test-${Date.now()}`;
+    const res = await request(app)
+      .post("/events")
+      .set("Cookie", staffCookie)
+      .type("form")
+      .send({
+        ...validEventBody(),
+        title: uniqueTitle,
+        organizerId: "hostile-spoofed-id",
+      });
+
+    expect(res.status).toBe(302);
+
+    const home = await request(app).get("/home").set("Cookie", staffCookie);
+    const match = home.text.match(
+      new RegExp(`${uniqueTitle}[\\s\\S]*?/events/([0-9a-f-]{36})`),
+    );
+    expect(match).not.toBeNull();
+    const eventId = (match as RegExpMatchArray)[1];
+
+    const detail = await request(app)
+      .get(`/events/${eventId}`)
+      .set("Cookie", staffCookie);
+
+    expect(detail.status).toBe(200);
+    // staff demo user id is "user-staff" per InMemoryUserRepository
+    expect(detail.text).toContain("user-staff");
+    expect(detail.text).not.toContain("hostile-spoofed-id");
+  });
 });
+
