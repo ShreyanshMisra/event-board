@@ -17,7 +17,8 @@ export type EventError =
   | { name: "EventNotFound"; message: string }
   | { name: "UnexpectedEventError"; message: string }
   | { name: "EventUnauthorized"; message: string }
-  | { name: "InvalidEventStateTransition"; message: string };
+  | { name: "InvalidEventStateTransition"; message: string }
+  | { name: "SearchQueryInvalid"; message: string };
 
 export const TitleRequired = (message: string): EventError => ({
   name: "TitleRequired",
@@ -111,5 +112,10 @@ export const EventUnauthorized = (message: string): EventError => ({
 
 export const InvalidEventStateTransition = (message: string): EventError => ({
   name: "InvalidEventStateTransition",
+  message,
+});
+
+export const SearchQueryInvalid = (message: string): EventError => ({
+  name: "SearchQueryInvalid",
   message,
 });
