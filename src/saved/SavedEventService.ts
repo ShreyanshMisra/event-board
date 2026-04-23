@@ -4,6 +4,7 @@ import type { UserRole } from "../auth/User";
 import type { IEventRepository } from "../events/EventRepository";
 import {
   EventNotFound,
+  EventNotSaveable,
   SavedEventUnauthorized,
   UnexpectedSavedEventError,
   type SavedEventError,
@@ -45,6 +46,10 @@ class SavedEventService implements ISavedEventService {
     }
     if (!eventResult.value) {
       return Err(EventNotFound("Event not found."));
+    }
+
+    if (eventResult.value.status !== "published") {
+      return Err(EventNotSaveable("Only published events can be saved."));
     }
 
     const existingResult = await this.saved.findByUserIdAndEventId(actingUserId, eventId);
