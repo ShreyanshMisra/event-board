@@ -42,6 +42,7 @@ class SavedEventController implements ISavedEventController {
       const error = result.value;
       const status = error.name === "EventNotFound" ? 404
         : error.name === "SavedEventUnauthorized" ? 403
+        : error.name === "EventNotSaveable" ? 400
         : 500;
       this.logger.warn(`Toggle save failed: ${error.message}`);
       res.status(status).render("partials/error", { message: error.message, layout: false });
