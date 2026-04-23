@@ -58,11 +58,11 @@ class EventController implements IEventController {
   ) {}
 
   private mapErrorStatus(error: EventError): number {
-  if (error.name === "EventNotFound") return 404;
-  if (error.name === "EventUnauthorized") return 403;
-  if (error.name === "InvalidEventStateTransition") return 400;
-  if (error.name === "UnexpectedEventError") return 500;
-  return 400;
+    if (error.name === "EventNotFound") return 404;
+    if (error.name === "EventUnauthorized") return 403;
+    if (error.name === "InvalidEventStateTransition") return 400;
+    if (error.name === "UnexpectedEventError") return 500;
+    return 400;
   }
 
   async showCreateForm(
@@ -437,6 +437,12 @@ class EventController implements IEventController {
         return;
       }
 
+      if (status !== 400) {
+        res.status(status).render("errors/not-found", { pageError: error.message, session });
+        return;
+      }
+
+      res.status(status);
       await this.showEditForm(req, res, session, error.message);
       return;
     }
