@@ -1,7 +1,17 @@
+import http from "http";
 import request from "supertest";
 import { createComposedApp } from "../../src/composition";
 
 const app = createComposedApp().getExpressApp();
+let server: http.Server;
+
+beforeAll((done) => {
+  server = app.listen(0, done);
+});
+
+afterAll((done) => {
+  server.close(done);
+});
 
 let uniqueCounter = 0;
 
@@ -14,7 +24,7 @@ function unique(value: string): string {
  * Helper: log in as a demo user and return the session cookie.
  */
 async function loginAs(email: string, password: string): Promise<string> {
-  const res = await request(app)
+  const res = await request(server)
     .post("/login")
     .type("form")
     .send({ email, password });
@@ -32,7 +42,7 @@ async function createRegularUser(
   email: string,
   displayName: string,
 ): Promise<void> {
-  const res = await request(app)
+  const res = await request(server)
     .post("/admin/users")
     .set("Cookie", adminCookie)
     .type("form")
@@ -74,7 +84,7 @@ async function createEvent(
     ...overrides,
   };
 
-  const res = await request(app)
+  const res = await request(server)
     .post("/events")
     .set("Cookie", cookie)
     .type("form")
@@ -92,7 +102,7 @@ async function findEventIdByTitle(
   cookie: string,
   title: string,
 ): Promise<string> {
-  const home = await request(app).get("/home").set("Cookie", cookie);
+  const home = await request(server).get("/home").set("Cookie", cookie);
 
   const escaped = escapeRegExp(title);
   const regex = new RegExp(
@@ -109,7 +119,7 @@ async function findEventIdByTitle(
 async function publishEvent(cookie: string, title: string): Promise<string> {
   const id = await findEventIdByTitle(cookie, title);
 
-  const res = await request(app)
+  const res = await request(server)
     .post(`/events/${id}/publish`)
     .set("Cookie", cookie);
 
@@ -118,7 +128,7 @@ async function publishEvent(cookie: string, title: string): Promise<string> {
 }
 
 async function cancelEvent(cookie: string, id: string): Promise<void> {
-  const res = await request(app)
+  const res = await request(server)
     .post(`/events/${id}/cancel`)
     .set("Cookie", cookie);
 
@@ -144,7 +154,7 @@ describe("RSVP Toggle — integration", () => {
   // ── Auth guards ─────────────────────────────────
 
   it("rejects unauthenticated toggle", async () => {
-    const res = await request(app).post("/events/123/rsvp");
+    const res = await request(server).post("/events/123/rsvp");
     expect(res.status).toBe(401);
   });
 
@@ -154,7 +164,7 @@ describe("RSVP Toggle — integration", () => {
     const title = await createEvent(staffCookie);
     const id = await publishEvent(staffCookie, title);
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${id}/rsvp`)
       .set("Cookie", userCookie)
       .set("HX-Request", "true");
@@ -167,9 +177,9 @@ describe("RSVP Toggle — integration", () => {
     const title = await createEvent(staffCookie);
     const id = await publishEvent(staffCookie, title);
 
-    await request(app).post(`/events/${id}/rsvp`).set("Cookie", userCookie);
+    await request(server).post(`/events/${id}/rsvp`).set("Cookie", userCookie);
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${id}/rsvp`)
       .set("Cookie", userCookie)
       .set("HX-Request", "true");
@@ -182,10 +192,10 @@ describe("RSVP Toggle — integration", () => {
     const title = await createEvent(staffCookie);
     const id = await publishEvent(staffCookie, title);
 
-    await request(app).post(`/events/${id}/rsvp`).set("Cookie", userCookie);
-    await request(app).post(`/events/${id}/rsvp`).set("Cookie", userCookie);
+    await request(server).post(`/events/${id}/rsvp`).set("Cookie", userCookie);
+    await request(server).post(`/events/${id}/rsvp`).set("Cookie", userCookie);
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${id}/rsvp`)
       .set("Cookie", userCookie)
       .set("HX-Request", "true");
@@ -199,9 +209,9 @@ describe("RSVP Toggle — integration", () => {
     const title = await createEvent(staffCookie, { capacity: "1" });
     const id = await publishEvent(staffCookie, title);
 
-    await request(app).post(`/events/${id}/rsvp`).set("Cookie", userCookie);
+    await request(server).post(`/events/${id}/rsvp`).set("Cookie", userCookie);
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${id}/rsvp`)
       .set("Cookie", user2Cookie)
       .set("HX-Request", "true");
@@ -216,7 +226,7 @@ describe("RSVP Toggle — integration", () => {
     const title = await createEvent(staffCookie);
     const id = await publishEvent(staffCookie, title);
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${id}/rsvp`)
       .set("Cookie", staffCookie);
 
@@ -227,7 +237,7 @@ describe("RSVP Toggle — integration", () => {
     const title = await createEvent(staffCookie);
     const id = await findEventIdByTitle(staffCookie, title);
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${id}/rsvp`)
       .set("Cookie", userCookie);
 
@@ -240,7 +250,7 @@ describe("RSVP Toggle — integration", () => {
 
     await cancelEvent(staffCookie, id);
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${id}/rsvp`)
       .set("Cookie", userCookie);
 
@@ -255,7 +265,7 @@ describe("RSVP Toggle — integration", () => {
 
     const id = await publishEvent(staffCookie, title);
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${id}/rsvp`)
       .set("Cookie", userCookie);
 
@@ -268,7 +278,7 @@ describe("RSVP Toggle — integration", () => {
     const title = await createEvent(staffCookie);
     const id = await publishEvent(staffCookie, title);
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${id}/rsvp`)
       .set("Cookie", userCookie)
       .set("HX-Request", "true");

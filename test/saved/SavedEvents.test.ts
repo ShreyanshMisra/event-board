@@ -1,10 +1,20 @@
+import http from "http";
 import request from "supertest";
 import { createComposedApp } from "../../src/composition";
 
 const app = createComposedApp().getExpressApp();
+let server: http.Server;
+
+beforeAll((done) => {
+  server = app.listen(0, done);
+});
+
+afterAll((done) => {
+  server.close(done);
+});
 
 async function loginAs(email: string, password: string): Promise<string> {
-  const res = await request(app)
+  const res = await request(server)
     .post("/login")
     .type("form")
     .send({ email, password });
@@ -14,7 +24,7 @@ async function loginAs(email: string, password: string): Promise<string> {
 }
 
 async function createEventAndGetId(cookie: string): Promise<string> {
-  await request(app)
+  await request(server)
     .post("/events")
     .set("Cookie", cookie)
     .type("form")
@@ -28,7 +38,7 @@ async function createEventAndGetId(cookie: string): Promise<string> {
       endDate: "2026-06-01T12:00",
     });
 
-  const homeRes = await request(app).get("/home").set("Cookie", cookie);
+  const homeRes = await request(server).get("/home").set("Cookie", cookie);
   const matches = [...homeRes.text.matchAll(/href="\/events\/([a-f0-9-]+)"/g)];
   const lastMatch = matches[matches.length - 1];
   if (!lastMatch?.[1]) throw new Error("Event ID not found after creation");
@@ -48,29 +58,29 @@ describe("Save for Later — integration", () => {
     userCookie = await loginAs("user@app.test", "password123");
 
     publishedEventId = await createEventAndGetId(staffCookie);
-    await request(app).post(`/events/${publishedEventId}/publish`).set("Cookie", staffCookie);
+    await request(server).post(`/events/${publishedEventId}/publish`).set("Cookie", staffCookie);
 
     cancelledEventId = await createEventAndGetId(staffCookie);
-    await request(app).post(`/events/${cancelledEventId}/publish`).set("Cookie", staffCookie);
-    await request(app).post(`/events/${cancelledEventId}/cancel`).set("Cookie", staffCookie);
+    await request(server).post(`/events/${cancelledEventId}/publish`).set("Cookie", staffCookie);
+    await request(server).post(`/events/${cancelledEventId}/cancel`).set("Cookie", staffCookie);
   });
 
   // ── Role restrictions — toggle ──────────────────────────────────────
 
   it("rejects unauthenticated POST /events/:id/save with 401", async () => {
-    const res = await request(app).post(`/events/${publishedEventId}/save`);
+    const res = await request(server).post(`/events/${publishedEventId}/save`);
     expect(res.status).toBe(401);
   });
 
   it("returns 403 when staff tries to save an event", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${publishedEventId}/save`)
       .set("Cookie", staffCookie);
     expect(res.status).toBe(403);
   });
 
   it("returns 403 when admin tries to save an event", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${publishedEventId}/save`)
       .set("Cookie", adminCookie);
     expect(res.status).toBe(403);
@@ -79,20 +89,20 @@ describe("Save for Later — integration", () => {
   // ── Role restrictions — saved list ─────────────────────────────────
 
   it("redirects unauthenticated GET /saved-events to /login", async () => {
-    const res = await request(app).get("/saved-events");
+    const res = await request(server).get("/saved-events");
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe("/login");
   });
 
   it("returns 403 when staff visits /saved-events", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .get("/saved-events")
       .set("Cookie", staffCookie);
     expect(res.status).toBe(403);
   });
 
   it("returns 403 when admin visits /saved-events", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .get("/saved-events")
       .set("Cookie", adminCookie);
     expect(res.status).toBe(403);
@@ -101,7 +111,7 @@ describe("Save for Later — integration", () => {
   // ── Invalid save attempts ───────────────────────────────────────────
 
   it("returns 400 when member tries to save a cancelled event", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${cancelledEventId}/save`)
       .set("Cookie", userCookie);
     expect(res.status).toBe(400);
@@ -109,7 +119,7 @@ describe("Save for Later — integration", () => {
   });
 
   it("returns 404 when member tries to save a non-existent event", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events/does-not-exist/save")
       .set("Cookie", userCookie);
     expect(res.status).toBe(404);
@@ -118,7 +128,7 @@ describe("Save for Later — integration", () => {
   // ── Toggle behaviour ────────────────────────────────────────────────
 
   it("returns 302 when member saves a published event", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${publishedEventId}/save`)
       .set("Cookie", userCookie);
     expect(res.status).toBe(302);
@@ -126,7 +136,7 @@ describe("Save for Later — integration", () => {
   });
 
   it("event appears in saved list after saving", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .get("/saved-events")
       .set("Cookie", userCookie);
     expect(res.status).toBe(200);
@@ -134,11 +144,11 @@ describe("Save for Later — integration", () => {
   });
 
   it("saving the same event again unsaves it", async () => {
-    await request(app)
+    await request(server)
       .post(`/events/${publishedEventId}/save`)
       .set("Cookie", userCookie);
 
-    const res = await request(app)
+    const res = await request(server)
       .get("/saved-events")
       .set("Cookie", userCookie);
     expect(res.status).toBe(200);
@@ -146,7 +156,7 @@ describe("Save for Later — integration", () => {
   });
 
   it("saved list shows empty message when nothing is saved", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .get("/saved-events")
       .set("Cookie", userCookie);
     expect(res.status).toBe(200);
@@ -154,11 +164,11 @@ describe("Save for Later — integration", () => {
   });
 
   it("re-saving an event after unsaving adds it back to the list", async () => {
-    await request(app)
+    await request(server)
       .post(`/events/${publishedEventId}/save`)
       .set("Cookie", userCookie);
 
-    const res = await request(app)
+    const res = await request(server)
       .get("/saved-events")
       .set("Cookie", userCookie);
     expect(res.status).toBe(200);
@@ -168,7 +178,7 @@ describe("Save for Later — integration", () => {
   // ── HTMX behaviour ──────────────────────────────────────────────────
 
   it("returns save button partial without layout on HTMX toggle", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${publishedEventId}/save`)
       .set("Cookie", userCookie)
       .set("HX-Request", "true");
@@ -180,11 +190,11 @@ describe("Save for Later — integration", () => {
   it("HTMX response shows Unsave when event is currently saved", async () => {
     // At this point the event is saved (from re-save test above, then the HTMX test unsaved it)
     // Save it first so we know the state
-    await request(app)
+    await request(server)
       .post(`/events/${publishedEventId}/save`)
       .set("Cookie", userCookie);
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${publishedEventId}/save`)
       .set("Cookie", userCookie)
       .set("HX-Request", "true");
@@ -194,7 +204,7 @@ describe("Save for Later — integration", () => {
 
   it("HTMX response shows Save for Later when event is currently unsaved", async () => {
     // At this point event is unsaved (previous test unsaved it)
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${publishedEventId}/save`)
       .set("Cookie", userCookie)
       .set("HX-Request", "true");

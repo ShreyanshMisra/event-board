@@ -1,13 +1,15 @@
+import http from "http";
 import request from "supertest";
 import { createComposedApp } from "../../src/composition";
 
 let app: ReturnType<ReturnType<typeof createComposedApp>["getExpressApp"]>;
+let server: http.Server;
 
 /**
  * Helper: log in as a demo user and return the session cookie.
  */
 async function loginAs(email: string, password: string): Promise<string> {
-  const res = await request(app)
+  const res = await request(server)
     .post("/login")
     .type("form")
     .send({ email, password });
@@ -43,7 +45,7 @@ async function createEvent(
     ...overrides,
   };
 
-  const res = await request(app)
+  const res = await request(server)
     .post("/events")
     .set("Cookie", cookie)
     .type("form")
@@ -65,7 +67,7 @@ async function publishEventByTitle(
   cookie: string,
   title: string,
 ): Promise<void> {
-  const home = await request(app).get("/home").set("Cookie", cookie);
+  const home = await request(server).get("/home").set("Cookie", cookie);
 
   expect(home.status).toBe(200);
 
@@ -81,7 +83,7 @@ async function publishEventByTitle(
   const eventId = match?.[1];
   expect(eventId).toBeTruthy();
 
-  const publishRes = await request(app)
+  const publishRes = await request(server)
     .post(`/events/${eventId}/publish`)
     .set("Cookie", cookie);
 
@@ -93,7 +95,16 @@ describe("Event Search — integration", () => {
 
   beforeEach(async () => {
     app = createComposedApp().getExpressApp();
+    await new Promise<void>((resolve) => {
+      server = app.listen(0, () => resolve());
+    });
     staffCookie = await loginAs("staff@app.test", "password123");
+  });
+
+  afterEach(async () => {
+    await new Promise<void>((resolve, reject) => {
+      server.close((err) => (err ? reject(err) : resolve()));
+    });
   });
 
   it("returns matching published upcoming events by title", async () => {
@@ -116,7 +127,7 @@ describe("Event Search — integration", () => {
     await publishEventByTitle(staffCookie, "Career Fair");
     await publishEventByTitle(staffCookie, "Chess Club Night");
 
-    const res = await request(app).get("/events/search").query({ q: "career" });
+    const res = await request(server).get("/events/search").query({ q: "career" });
 
     expect(res.status).toBe(200);
     expect(res.text).toContain("Career Fair");
@@ -133,14 +144,14 @@ describe("Event Search — integration", () => {
 
     await publishEventByTitle(staffCookie, "Resume Workshop");
 
-    const descriptionRes = await request(app)
+    const descriptionRes = await request(server)
       .get("/events/search")
       .query({ q: "recruiters" });
 
     expect(descriptionRes.status).toBe(200);
     expect(descriptionRes.text).toContain("Resume Workshop");
 
-    const locationRes = await request(app)
+    const locationRes = await request(server)
       .get("/events/search")
       .query({ q: "innovation" });
 
@@ -157,7 +168,7 @@ describe("Event Search — integration", () => {
 
     await publishEventByTitle(staffCookie, "Study Group");
 
-    const res = await request(app)
+    const res = await request(server)
       .get("/events/search")
       .query({ q: "basket weaving" });
 
@@ -186,7 +197,7 @@ describe("Event Search — integration", () => {
     await publishEventByTitle(staffCookie, "Hackathon Kickoff");
     await publishEventByTitle(staffCookie, "Volunteer Day");
 
-    const res = await request(app).get("/events/search").query({ q: "" });
+    const res = await request(server).get("/events/search").query({ q: "" });
 
     expect(res.status).toBe(200);
     expect(res.text).toContain("Hackathon Kickoff");
@@ -203,7 +214,7 @@ describe("Event Search — integration", () => {
 
     await publishEventByTitle(staffCookie, "Art Show");
 
-    const res = await request(app)
+    const res = await request(server)
       .get("/events/search")
       .query({ q: "   art   " });
 
@@ -218,7 +229,7 @@ describe("Event Search — integration", () => {
       location: "Secret Room",
     });
 
-    const res = await request(app).get("/events/search").query({ q: "hidden" });
+    const res = await request(server).get("/events/search").query({ q: "hidden" });
 
     expect(res.status).toBe(200);
     expect(res.text).not.toContain("Hidden Draft Event");
@@ -226,7 +237,7 @@ describe("Event Search — integration", () => {
   });
 
   it("returns 400 for invalid search input", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .get("/events/search")
       .query({ q: "x".repeat(201) });
 
@@ -244,7 +255,7 @@ describe("Event Search — integration", () => {
 
     await publishEventByTitle(staffCookie, "Campus Movie Night");
 
-    const res = await request(app)
+    const res = await request(server)
       .get("/events/search")
       .set("HX-Request", "true")
       .query({ q: "movie" });
