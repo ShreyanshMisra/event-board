@@ -1,13 +1,23 @@
+import http from "http";
 import request from "supertest";
 import { createComposedApp } from "../../src/composition";
 
 const app = createComposedApp().getExpressApp();
+let server: http.Server;
+
+beforeAll((done) => {
+  server = app.listen(0, done);
+});
+
+afterAll((done) => {
+  server.close(done);
+});
 
 /**
  * Helper: log in as a demo user and return the session cookie.
  */
 async function loginAs(email: string, password: string): Promise<string> {
-  const res = await request(app)
+  const res = await request(server)
     .post("/login")
     .type("form")
     .send({ email, password });
@@ -41,13 +51,13 @@ async function createEvent(
     ...overrides,
   };
 
-  await request(app)
+  await request(server)
     .post("/events")
     .set("Cookie", cookie)
     .type("form")
     .send(body);
 
-  const homeRes = await request(app)
+  const homeRes = await request(server)
     .get("/home")
     .set("Cookie", cookie);
 
@@ -57,7 +67,7 @@ async function createEvent(
 
 /** Publish an event by id. */
 async function publishEvent(cookie: string, eventId: string): Promise<void> {
-  await request(app)
+  await request(server)
     .post(`/events/${eventId}/publish`)
     .set("Cookie", cookie)
     .set("HX-Request", "true")
@@ -84,7 +94,7 @@ describe("Event Detail Page — integration", () => {
 
     await publishEvent(staffCookie, eventId);
 
-    const res = await request(app)
+    const res = await request(server)
       .get(`/events/${eventId}`)
       .set("Cookie", userCookie);
 
@@ -93,7 +103,7 @@ describe("Event Detail Page — integration", () => {
   });
 
   it("returns 404 for a missing event", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .get("/events/00000000-0000-0000-0000-000000000000")
       .set("Cookie", userCookie);
 
@@ -106,7 +116,7 @@ describe("Event Detail Page — integration", () => {
       title: "Organizer Draft Event",
     });
 
-    const res = await request(app)
+    const res = await request(server)
       .get(`/events/${eventId}`)
       .set("Cookie", staffCookie);
 
@@ -119,7 +129,7 @@ describe("Event Detail Page — integration", () => {
       title: "Admin Can View Draft",
     });
 
-    const res = await request(app)
+    const res = await request(server)
       .get(`/events/${eventId}`)
       .set("Cookie", adminCookie);
 
@@ -132,7 +142,7 @@ describe("Event Detail Page — integration", () => {
       title: "Hidden Draft",
     });
 
-    const res = await request(app)
+    const res = await request(server)
       .get(`/events/${eventId}`)
       .set("Cookie", userCookie);
 
@@ -141,7 +151,7 @@ describe("Event Detail Page — integration", () => {
   });
 
   it("returns 401 error fragment for HTMX detail request when not authenticated", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .get("/events/00000000-0000-0000-0000-000000000000")
       .set("HX-Request", "true");
 

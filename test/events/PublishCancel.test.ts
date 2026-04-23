@@ -1,13 +1,23 @@
+import http from "http";
 import request from "supertest";
 import { createComposedApp } from "../../src/composition";
 
 const app = createComposedApp().getExpressApp();
+let server: http.Server;
+
+beforeAll((done) => {
+  server = app.listen(0, done);
+});
+
+afterAll((done) => {
+  server.close(done);
+});
 
 /**
  * Helper: log in as a demo user and return the session cookie.
  */
 async function loginAs(email: string, password: string): Promise<string> {
-  const res = await request(app)
+  const res = await request(server)
     .post("/login")
     .type("form")
     .send({ email, password });
@@ -41,13 +51,13 @@ async function createEvent(
     ...overrides,
   };
 
-  await request(app)
+  await request(server)
     .post("/events")
     .set("Cookie", cookie)
     .type("form")
     .send(body);
 
-  const homeRes = await request(app)
+  const homeRes = await request(server)
     .get("/home")
     .set("Cookie", cookie);
 
@@ -57,7 +67,7 @@ async function createEvent(
 
 /** Publish an event by id. */
 async function publishEvent(cookie: string, eventId: string): Promise<void> {
-  await request(app)
+  await request(server)
     .post(`/events/${eventId}/publish`)
     .set("Cookie", cookie)
     .set("HX-Request", "true")
@@ -67,7 +77,7 @@ async function publishEvent(cookie: string, eventId: string): Promise<void> {
 
 /** Cancel an event by id. */
 async function cancelEvent(cookie: string, eventId: string): Promise<void> {
-  await request(app)
+  await request(server)
     .post(`/events/${eventId}/cancel`)
     .set("Cookie", cookie)
     .set("HX-Request", "true")
@@ -89,7 +99,7 @@ describe("Event Publish and Cancel — integration", () => {
       title: "Draft To Publish",
     });
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${eventId}/publish`)
       .set("Cookie", staffCookie)
       .set("HX-Request", "true")
@@ -105,7 +115,7 @@ describe("Event Publish and Cancel — integration", () => {
       title: "Only Organizer Can Publish",
     });
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${eventId}/publish`)
       .set("Cookie", userCookie)
       .set("HX-Request", "true")
@@ -117,7 +127,7 @@ describe("Event Publish and Cancel — integration", () => {
   });
 
   it("returns 404 when trying to publish a missing event", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events/00000000-0000-0000-0000-000000000000/publish")
       .set("Cookie", staffCookie)
       .set("HX-Request", "true")
@@ -135,7 +145,7 @@ describe("Event Publish and Cancel — integration", () => {
 
     await publishEvent(staffCookie, eventId);
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${eventId}/publish`)
       .set("Cookie", staffCookie)
       .set("HX-Request", "true")
@@ -153,7 +163,7 @@ describe("Event Publish and Cancel — integration", () => {
 
     await publishEvent(staffCookie, eventId);
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${eventId}/cancel`)
       .set("Cookie", staffCookie)
       .set("HX-Request", "true")
@@ -171,7 +181,7 @@ describe("Event Publish and Cancel — integration", () => {
 
     await publishEvent(staffCookie, eventId);
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${eventId}/cancel`)
       .set("Cookie", userCookie)
       .set("HX-Request", "true")
@@ -183,7 +193,7 @@ describe("Event Publish and Cancel — integration", () => {
   });
 
   it("returns 404 when trying to cancel a missing event", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events/00000000-0000-0000-0000-000000000000/cancel")
       .set("Cookie", staffCookie)
       .set("HX-Request", "true")
@@ -202,7 +212,7 @@ describe("Event Publish and Cancel — integration", () => {
     await publishEvent(staffCookie, eventId);
     await cancelEvent(staffCookie, eventId);
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${eventId}/cancel`)
       .set("Cookie", staffCookie)
       .set("HX-Request", "true")
@@ -218,7 +228,7 @@ describe("Event Publish and Cancel — integration", () => {
       title: "HTMX Publish Fragment",
     });
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/events/${eventId}/publish`)
       .set("Cookie", staffCookie)
       .set("HX-Request", "true")
@@ -231,7 +241,7 @@ describe("Event Publish and Cancel — integration", () => {
   });
 
   it("returns 401 error fragment for HTMX publish request when not authenticated", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events/00000000-0000-0000-0000-000000000000/publish")
       .set("HX-Request", "true")
       .type("form")
