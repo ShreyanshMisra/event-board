@@ -31,3 +31,12 @@ model Rsvp {
 
   @@unique([userId, eventId])
 }
+
+model SavedEvent {
+  id        String @id
+  userId    String
+  eventId   String
+  createdAt String
+
+  @@unique([userId, eventId])
+}
