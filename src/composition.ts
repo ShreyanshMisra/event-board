@@ -8,8 +8,6 @@ import { CreatePasswordHasher } from "./auth/PasswordHasher";
 import { CreateEventController } from "./events/EventController";
 import { CreateEventService } from "./events/EventService";
 import { CreatePrismaEventRepository } from "./events/PrismaEventRepository";
-import { CreateInMemoryEventRepository } from "./events/InMemoryEventRepository";
-import { CreateInMemoryRsvpRepository } from "./rsvps/InMemoryRsvpRepository";
 import { CreateRsvpController } from "./rsvps/RsvpController";
 import {
   CreateRsvpService,
@@ -38,16 +36,18 @@ export function createComposedApp(logger?: ILoggingService): IApp {
     resolvedLogger,
   );
 
+  // Prisma wiring (shared across repositories)
+  const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
+  const adapter = new PrismaBetterSqlite3({ url: dbUrl });
+  const prisma = new PrismaClient({ adapter });
+
   // Event wiring
-  const eventRepository = CreateInMemoryEventRepository();
+  const eventRepository = CreatePrismaEventRepository(prisma);
   const eventService = CreateEventService(eventRepository);
   const eventController = CreateEventController(eventService, resolvedLogger);
 
   // RSVP wiring
-  const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
-  const adapter = new PrismaBetterSqlite3({ url: dbUrl });
-  const prisma = new PrismaClient({ adapter });
-  const rsvpRepository = CreateInMemoryRsvpRepository(eventRepository);
+  const rsvpRepository = CreatePrismaRsvpRepository(prisma);
   const rsvpService = CreateRsvpToggleService(rsvpRepository, eventRepository);
   const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
 
