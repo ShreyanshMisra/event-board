@@ -38,19 +38,17 @@ function validEditBody() {
 }
 
 async function createEventAndGetId(cookie: string): Promise<string> {
-  const uniqueTitle = `Study Group ${Date.now()}-${Math.random().toString(36).slice(2)}`;
   await request(app)
     .post("/events")
     .set("Cookie", cookie)
     .type("form")
-    .send({ ...validEventBody(), title: uniqueTitle });
+    .send(validEventBody());
 
   const homeRes = await request(app).get("/home").set("Cookie", cookie);
-  const match = homeRes.text.match(
-    new RegExp(`${uniqueTitle}[\\s\\S]*?/events/([0-9a-f-]{36})`),
-  );
-  if (!match?.[1]) throw new Error("Event ID not found after creation");
-  return match[1];
+  const matches = [...homeRes.text.matchAll(/href="\/events\/([a-f0-9-]+)"/g)];
+  const lastMatch = matches[matches.length - 1];
+  if (!lastMatch?.[1]) throw new Error("Event ID not found after creation");
+  return lastMatch[1];
 }
 
 describe("Event Editing — integration", () => {
