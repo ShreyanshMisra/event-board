@@ -8,7 +8,6 @@ import { CreatePasswordHasher } from "./auth/PasswordHasher";
 import { CreateEventController } from "./events/EventController";
 import { CreateEventService } from "./events/EventService";
 import { CreatePrismaEventRepository } from "./events/PrismaEventRepository";
-import { CreateInMemoryRsvpRepository } from "./rsvps/InMemoryRsvpRepository";
 import { CreateRsvpController } from "./rsvps/RsvpController";
 import {
   CreateRsvpService,
@@ -48,7 +47,7 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const eventController = CreateEventController(eventService, resolvedLogger);
 
   // RSVP wiring
-  const rsvpRepository = CreateInMemoryRsvpRepository(eventRepository);
+  const rsvpRepository = CreatePrismaRsvpRepository(prisma);
   const rsvpService = CreateRsvpToggleService(rsvpRepository, eventRepository);
   const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
 
