@@ -1,13 +1,27 @@
+import http from "http";
 import request from "supertest";
 import { createComposedApp } from "../../src/composition";
 
+// NOTE: createComposedApp() is constructed once per test file, so all tests
+// in this file share the same in-memory state. That is fine today because
+// nothing here asserts on counts; if you add stateful assertions, rebuild
+// the app per test (e.g. inside beforeEach) to keep tests independent.
 const app = createComposedApp().getExpressApp();
+let server: http.Server;
+
+beforeAll((done) => {
+  server = app.listen(0, done);
+});
+
+afterAll((done) => {
+  server.close(done);
+});
 
 /**
  * Helper: log in as a demo user and return the session cookie.
  */
 async function loginAs(email: string, password: string): Promise<string> {
-  const res = await request(app)
+  const res = await request(server)
     .post("/login")
     .type("form")
     .send({ email, password });
@@ -40,7 +54,7 @@ describe("Event Creation — integration", () => {
   // ── Happy path ──────────────────────────────────────────────────────
 
   it("creates an event and redirects on valid input", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -53,14 +67,14 @@ describe("Event Creation — integration", () => {
   // ── Auth & role guards ──────────────────────────────────────────────
 
   it("redirects unauthenticated GET to /login", async () => {
-    const res = await request(app).get("/events/create");
+    const res = await request(server).get("/events/create");
 
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe("/login");
   });
 
   it("rejects unauthenticated POST with 401", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .type("form")
       .send(validEventBody());
@@ -71,7 +85,7 @@ describe("Event Creation — integration", () => {
   it("rejects a regular user with 403", async () => {
     const userCookie = await loginAs("user@app.test", "password123");
 
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", userCookie)
       .type("form")
@@ -83,7 +97,7 @@ describe("Event Creation — integration", () => {
   // ── Title errors ────────────────────────────────────────────────────
 
   it("returns 400 when title is missing", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -94,7 +108,7 @@ describe("Event Creation — integration", () => {
   });
 
   it("returns 400 when title exceeds 100 characters", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -107,7 +121,7 @@ describe("Event Creation — integration", () => {
   // ── Description errors ──────────────────────────────────────────────
 
   it("returns 400 when description is missing", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -118,7 +132,7 @@ describe("Event Creation — integration", () => {
   });
 
   it("returns 400 when description exceeds 2000 characters", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -131,7 +145,7 @@ describe("Event Creation — integration", () => {
   // ── Location errors ─────────────────────────────────────────────────
 
   it("returns 400 when location is missing", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -142,7 +156,7 @@ describe("Event Creation — integration", () => {
   });
 
   it("returns 400 when location exceeds 200 characters", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -155,7 +169,7 @@ describe("Event Creation — integration", () => {
   // ── Category errors ─────────────────────────────────────────────────
 
   it("returns 400 when category is missing", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -166,7 +180,7 @@ describe("Event Creation — integration", () => {
   });
 
   it("returns 400 when category is invalid", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -179,7 +193,7 @@ describe("Event Creation — integration", () => {
   // ── Capacity errors ─────────────────────────────────────────────────
 
   it("returns 400 when capacity is missing", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -190,7 +204,7 @@ describe("Event Creation — integration", () => {
   });
 
   it("returns 400 when capacity is zero", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -201,7 +215,7 @@ describe("Event Creation — integration", () => {
   });
 
   it("returns 400 when capacity is negative", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -212,7 +226,7 @@ describe("Event Creation — integration", () => {
   });
 
   it("returns 400 when capacity is not an integer", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -225,7 +239,7 @@ describe("Event Creation — integration", () => {
   // ── Start date errors ───────────────────────────────────────────────
 
   it("returns 400 when start date is missing", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -236,7 +250,7 @@ describe("Event Creation — integration", () => {
   });
 
   it("returns 400 when start date is invalid", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -249,7 +263,7 @@ describe("Event Creation — integration", () => {
   // ── End date errors ─────────────────────────────────────────────────
 
   it("returns 400 when end date is missing", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -260,7 +274,7 @@ describe("Event Creation — integration", () => {
   });
 
   it("returns 400 when end date is invalid", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -271,7 +285,7 @@ describe("Event Creation — integration", () => {
   });
 
   it("returns 400 when end date is before start date", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -286,7 +300,7 @@ describe("Event Creation — integration", () => {
   });
 
   it("returns 400 when end date equals start date", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .type("form")
@@ -303,7 +317,7 @@ describe("Event Creation — integration", () => {
   // ── HTMX behaviour ─────────────────────────────────────────────────
 
   it("returns HX-Redirect header on successful HTMX submission", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .set("HX-Request", "true")
@@ -315,7 +329,7 @@ describe("Event Creation — integration", () => {
   });
 
   it("returns form partial without layout on HTMX validation error", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/events")
       .set("Cookie", staffCookie)
       .set("HX-Request", "true")
@@ -327,4 +341,93 @@ describe("Event Creation — integration", () => {
     // Should be the partial only — no full page layout (no <html> tag)
     expect(res.text).not.toContain("<html");
   });
+
+  // ── Whitespace handling ────────────────────────────────────────────
+
+  it("returns 400 when title is only whitespace", async () => {
+    const res = await request(server)
+      .post("/events")
+      .set("Cookie", staffCookie)
+      .type("form")
+      .send({ ...validEventBody(), title: "   " });
+
+    expect(res.status).toBe(400);
+    expect(res.text).toContain("Title is required");
+  });
+
+  // ── Admin role allowlist ───────────────────────────────────────────
+
+  it("allows admin users to create events", async () => {
+    const adminCookie = await loginAs("admin@app.test", "password123");
+
+    const res = await request(server)
+      .post("/events")
+      .set("Cookie", adminCookie)
+      .type("form")
+      .send(validEventBody());
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe("/home");
+  });
+
+  // ── Persistence & status invariants ────────────────────────────────
+
+  it("creates the event in draft status and makes it retrievable", async () => {
+    const uniqueTitle = `Draft-Status-Check-${Date.now()}`;
+    await request(server)
+      .post("/events")
+      .set("Cookie", staffCookie)
+      .type("form")
+      .send({ ...validEventBody(), title: uniqueTitle });
+
+    const home = await request(server).get("/home").set("Cookie", staffCookie);
+    const match = home.text.match(
+      new RegExp(`${uniqueTitle}[\\s\\S]*?/events/([0-9a-f-]{36})`),
+    );
+    expect(match).not.toBeNull();
+    const eventId = (match as RegExpMatchArray)[1];
+
+    const detail = await request(server)
+      .get(`/events/${eventId}`)
+      .set("Cookie", staffCookie);
+
+    expect(detail.status).toBe(200);
+    expect(detail.text).toContain(uniqueTitle);
+    // Status field on the detail page renders the literal status string
+    expect(detail.text).toContain("draft");
+  });
+
+  // ── Organizer identity comes from session, not from the form ───────
+
+  it("ignores organizerId in the body and uses the session user", async () => {
+    const uniqueTitle = `Organizer-Spoof-Test-${Date.now()}`;
+    const res = await request(server)
+      .post("/events")
+      .set("Cookie", staffCookie)
+      .type("form")
+      .send({
+        ...validEventBody(),
+        title: uniqueTitle,
+        organizerId: "hostile-spoofed-id",
+      });
+
+    expect(res.status).toBe(302);
+
+    const home = await request(server).get("/home").set("Cookie", staffCookie);
+    const match = home.text.match(
+      new RegExp(`${uniqueTitle}[\\s\\S]*?/events/([0-9a-f-]{36})`),
+    );
+    expect(match).not.toBeNull();
+    const eventId = (match as RegExpMatchArray)[1];
+
+    const detail = await request(server)
+      .get(`/events/${eventId}`)
+      .set("Cookie", staffCookie);
+
+    expect(detail.status).toBe(200);
+    // staff demo user id is "user-staff" per InMemoryUserRepository
+    expect(detail.text).toContain("user-staff");
+    expect(detail.text).not.toContain("hostile-spoofed-id");
+  });
 });
+

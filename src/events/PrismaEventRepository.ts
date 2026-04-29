@@ -69,11 +69,14 @@ class PrismaEventRepository implements IEventRepository {
       return Err(UnexpectedEventError("Unable to list events."));
     }
   }
-
   async findUpcoming(): Promise<Result<IEventRecord[], EventError>> {
     try {
+      const nowIso = new Date().toISOString();
       const rows = await this.prisma.event.findMany({
-        where: { startDate: { gte: new Date().toISOString() } },
+        where: {
+          startDate: { gt: nowIso },
+          status: { notIn: ["cancelled", "past"] },
+        },
         orderBy: { startDate: "asc" },
       });
       return Ok(rows.map(toEventRecord));
@@ -82,29 +85,28 @@ class PrismaEventRepository implements IEventRepository {
     }
   }
 
-  async searchUpcoming(
-    query: string,
-  ): Promise<Result<IEventRecord[], EventError>> {
+  async searchUpcoming(query: string): Promise<Result<IEventRecord[], EventError>> {
     try {
-      const normalizedQuery = query.trim();
+      const nowIso = new Date().toISOString();
+      const lowerQuery = query.toLowerCase();
+
+      const baseWhere: Record<string, unknown> = {
+        startDate: { gt: nowIso },
+        status: { notIn: ["cancelled", "past"] },
+      };
+
+      if (lowerQuery) {
+        baseWhere.OR = [
+          { title: { contains: lowerQuery } },
+          { description: { contains: lowerQuery } },
+          { location: { contains: lowerQuery } },
+        ];
+      }
 
       const rows = await this.prisma.event.findMany({
-        where: {
-          status: "published",
-          startDate: { gt: new Date().toISOString() },
-          ...(normalizedQuery
-            ? {
-                OR: [
-                  { title: { contains: normalizedQuery } },
-                  { description: { contains: normalizedQuery } },
-                  { location: { contains: normalizedQuery } },
-                ],
-              }
-            : {}),
-        },
+        where: baseWhere,
         orderBy: { startDate: "asc" },
       });
-
       return Ok(rows.map(toEventRecord));
     } catch {
       return Err(UnexpectedEventError("Unable to search upcoming events."));
@@ -113,7 +115,12 @@ class PrismaEventRepository implements IEventRepository {
 
   async findAll(): Promise<Result<IEventRecord[], EventError>> {
     try {
-      const rows = await this.prisma.event.findMany();
+      const rows = await this.prisma.event.findMany({
+        orderBy: {
+          startDate: "asc",
+        },
+      });
+
       return Ok(rows.map(toEventRecord));
     } catch {
       return Err(UnexpectedEventError("Unable to list events."));
@@ -132,6 +139,27 @@ class PrismaEventRepository implements IEventRepository {
       return Ok(toEventRecord(row));
     } catch {
       return Err(UnexpectedEventError("Unable to update event status."));
+    }
+  }
+
+  async update(event: IEventRecord): Promise<Result<IEventRecord, EventError>> {
+    try {
+      const row = await this.prisma.event.update({
+        where: { id: event.id },
+        data: {
+          title: event.title,
+          description: event.description,
+          location: event.location,
+          category: event.category,
+          capacity: event.capacity,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          updatedAt: event.updatedAt,
+        },
+      });
+      return Ok(toEventRecord(row));
+    } catch {
+      return Err(UnexpectedEventError("Unable to update the event."));
     }
   }
 }

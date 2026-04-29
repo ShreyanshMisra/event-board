@@ -8,10 +8,15 @@ import { CreatePasswordHasher } from "./auth/PasswordHasher";
 import { CreateEventController } from "./events/EventController";
 import { CreateEventService } from "./events/EventService";
 import { CreatePrismaEventRepository } from "./events/PrismaEventRepository";
-import { CreateInMemoryEventRepository } from "./events/InMemoryEventRepository";
 import { CreateRsvpController } from "./rsvps/RsvpController";
-import { CreateRsvpService } from "./rsvps/RsvpService";
+import {
+  CreateRsvpService,
+  CreateRsvpToggleService,
+} from "./rsvps/RsvpService";
 import { CreatePrismaRsvpRepository } from "./rsvps/PrismaRsvpRepository";
+import { CreateSavedEventController } from "./saved/SavedEventController";
+import { CreateSavedEventService } from "./saved/SavedEventService";
+import { CreatePrismaSavedEventRepository } from "./saved/PrismaSavedEventRepository";
 import { CreateApp } from "./app";
 import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
@@ -25,20 +30,37 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const passwordHasher = CreatePasswordHasher();
   const authService = CreateAuthService(authUsers, passwordHasher);
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
-  const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
+  const authController = CreateAuthController(
+    authService,
+    adminUserService,
+    resolvedLogger,
+  );
+
+  // Prisma wiring (shared across repositories)
+  const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
+  const adapter = new PrismaBetterSqlite3({ url: dbUrl });
+  const prisma = new PrismaClient({ adapter });
 
   // Event wiring
-  const eventRepository = CreateInMemoryEventRepository();
+  const eventRepository = CreatePrismaEventRepository(prisma);
   const eventService = CreateEventService(eventRepository);
   const eventController = CreateEventController(eventService, resolvedLogger);
 
   // RSVP wiring
-  const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
-  const adapter = new PrismaBetterSqlite3({ url: dbUrl });
-  const prisma = new PrismaClient({ adapter });
   const rsvpRepository = CreatePrismaRsvpRepository(prisma);
-  const rsvpService = CreateRsvpService(rsvpRepository);
+  const rsvpService = CreateRsvpToggleService(rsvpRepository, eventRepository);
   const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
 
-  return CreateApp(authController, eventController, rsvpController, resolvedLogger);
+  // Saved events wiring
+  const savedEventRepository = CreatePrismaSavedEventRepository(prisma, eventRepository);
+  const savedEventService = CreateSavedEventService(savedEventRepository, eventRepository);
+  const savedEventController = CreateSavedEventController(savedEventService, resolvedLogger);
+
+  return CreateApp(
+    authController,
+    eventController,
+    rsvpController,
+    savedEventController,
+    resolvedLogger,
+  );
 }

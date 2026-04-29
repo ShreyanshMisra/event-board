@@ -119,6 +119,14 @@ class InMemoryEventRepository implements IEventRepository {
     this.events[index] = updated;
     return Ok(updated);
   }
+  async update(event: IEventRecord): Promise<Result<IEventRecord, EventError>> {
+    const index = this.events.findIndex((e) => e.id === event.id);
+    if (index === -1) {
+      return Err(EventNotFound("Event not found."));
+    }
+    this.events[index] = event;
+    return Ok(event);
+  }
 }
 
 export function CreateInMemoryEventRepository(): IEventRepository {

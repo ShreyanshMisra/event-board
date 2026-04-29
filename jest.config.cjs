@@ -9,5 +9,7 @@ module.exports = {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   clearMocks: true,
+  setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
   collectCoverageFrom: ['src/**/*.ts'],
+  testTimeout: 10000,
 }

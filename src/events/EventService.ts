@@ -43,6 +43,8 @@ export interface CreateEventInput {
   endDate: string;
 }
 
+export type EditEventInput = CreateEventInput;
+
 export interface IEventService {
   createEvent(
     input: CreateEventInput,
@@ -72,6 +74,12 @@ export interface IEventService {
     actingUserRole: UserRole,
   ): Promise<Result<IEventRecord, EventError>>;
   searchUpcoming(query: string): Promise<Result<IEventSummary[], EventError>>;
+  editEvent(
+    eventId: string,
+    input: EditEventInput,
+    actingUserId: string,
+    actingUserRole: UserRole,
+  ): Promise<Result<IEventRecord, EventError>>;
 }
 
 class EventService implements IEventService {
@@ -343,6 +351,99 @@ class EventService implements IEventService {
     }
 
     return Ok(updated.value);
+  }
+
+  async editEvent(
+    eventId: string,
+    input: EditEventInput,
+    actingUserId: string,
+    actingUserRole: UserRole,
+  ): Promise<Result<IEventRecord, EventError>> {
+    const findResult = await this.events.findById(eventId, actingUserRole);
+
+    if (findResult.ok === false) {
+      return Err(UnexpectedEventError(findResult.value.message));
+    }
+
+    const event = findResult.value;
+
+    if (!event) {
+      return Err(EventNotFound("Event not found."));
+    }
+
+    const isOrganizer = event.organizerId === actingUserId;
+    const isAdmin = actingUserRole === "admin";
+
+    if (!isOrganizer && !isAdmin) {
+      return Err(EventUnauthorized("You are not allowed to edit this event."));
+    }
+
+    if (event.status === "cancelled" || event.status === "past") {
+      return Err(
+        InvalidEventStateTransition("Cancelled or past events cannot be edited."),
+      );
+    }
+
+    // Validate fields — same rules as createEvent
+    const title = input.title.trim();
+    const description = input.description.trim();
+    const location = input.location.trim();
+    const categoryRaw = input.category.trim();
+    const capacityRaw = input.capacity.trim();
+    const startDateRaw = input.startDate.trim();
+    const endDateRaw = input.endDate.trim();
+
+    if (!title) return Err(TitleRequired("Title is required."));
+    if (title.length > 100) return Err(TitleTooLong("Title must be 100 characters or fewer."));
+
+    if (!description) return Err(DescriptionRequired("Description is required."));
+    if (description.length > 2000) return Err(DescriptionTooLong("Description must be 2000 characters or fewer."));
+
+    if (!location) return Err(LocationRequired("Location is required."));
+    if (location.length > 200) return Err(LocationTooLong("Location must be 200 characters or fewer."));
+
+    if (!categoryRaw) return Err(CategoryRequired("Category is required."));
+    if (!EVENT_CATEGORIES.includes(categoryRaw as EventCategory)) {
+      return Err(CategoryInvalid("Category must be one of: " + EVENT_CATEGORIES.join(", ") + "."));
+    }
+    const category = categoryRaw as EventCategory;
+
+    if (!capacityRaw) return Err(CapacityRequired("Capacity is required."));
+    const capacity = Number(capacityRaw);
+    if (!Number.isInteger(capacity) || capacity < 1) {
+      return Err(CapacityInvalid("Capacity must be a positive whole number."));
+    }
+
+    if (!startDateRaw) return Err(StartDateRequired("Start date is required."));
+    const startDate = new Date(startDateRaw);
+    if (isNaN(startDate.getTime())) return Err(StartDateInvalid("Start date is not a valid date."));
+
+    if (!endDateRaw) return Err(EndDateRequired("End date is required."));
+    const endDate = new Date(endDateRaw);
+    if (isNaN(endDate.getTime())) return Err(EndDateInvalid("End date is not a valid date."));
+
+    if (endDate.getTime() <= startDate.getTime()) {
+      return Err(EndDateBeforeStartDate("End date must be after the start date."));
+    }
+
+    const updated: IEventRecord = {
+      ...event,
+      title,
+      description,
+      location,
+      category,
+      capacity,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const saveResult = await this.events.update(updated);
+    if (saveResult.ok === false) {
+      return Err(UnexpectedEventError(saveResult.value.message));
+    }
+
+    return Ok(saveResult.value);
   }
 }
 
