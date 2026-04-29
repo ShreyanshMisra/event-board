@@ -127,7 +127,9 @@ describe("Event Search — integration", () => {
     await publishEventByTitle(staffCookie, "Career Fair");
     await publishEventByTitle(staffCookie, "Chess Club Night");
 
-    const res = await request(server).get("/events/search").query({ q: "career" });
+    const res = await request(server)
+      .get("/events/search")
+      .query({ q: "career" });
 
     expect(res.status).toBe(200);
     expect(res.text).toContain("Career Fair");
@@ -229,7 +231,9 @@ describe("Event Search — integration", () => {
       location: "Secret Room",
     });
 
-    const res = await request(server).get("/events/search").query({ q: "hidden" });
+    const res = await request(server)
+      .get("/events/search")
+      .query({ q: "hidden" });
 
     expect(res.status).toBe(200);
     expect(res.text).not.toContain("Hidden Draft Event");
@@ -267,17 +271,19 @@ describe("Event Search — integration", () => {
 
   it("searches case-insensitively", async () => {
     await createEvent(staffCookie, {
-      title: "Career Fair",
+      title: "Uppercase Career Fair",
       description: "Meet recruiters",
       location: "Student Center",
       category: "career",
     });
 
-    await publishEventByTitle(staffCookie, "Career Fair");
+    await publishEventByTitle(staffCookie, "Uppercase Career Fair");
 
-    const res = await request(app).get("/events/search").query({ q: "CAREER" });
+    const res = await request(server)
+      .get("/events/search")
+      .query({ q: "CAREER" });
 
     expect(res.status).toBe(200);
-    expect(res.text).toContain("Career Fair");
+    expect(res.text).toContain("Uppercase Career Fair");
   });
 });
