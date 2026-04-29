@@ -82,6 +82,35 @@ class PrismaEventRepository implements IEventRepository {
     }
   }
 
+  async searchUpcoming(
+    query: string,
+  ): Promise<Result<IEventRecord[], EventError>> {
+    try {
+      const normalizedQuery = query.trim();
+
+      const rows = await this.prisma.event.findMany({
+        where: {
+          status: "published",
+          startDate: { gt: new Date().toISOString() },
+          ...(normalizedQuery
+            ? {
+                OR: [
+                  { title: { contains: normalizedQuery } },
+                  { description: { contains: normalizedQuery } },
+                  { location: { contains: normalizedQuery } },
+                ],
+              }
+            : {}),
+        },
+        orderBy: { startDate: "asc" },
+      });
+
+      return Ok(rows.map(toEventRecord));
+    } catch {
+      return Err(UnexpectedEventError("Unable to search upcoming events."));
+    }
+  }
+
   async findAll(): Promise<Result<IEventRecord[], EventError>> {
     try {
       const rows = await this.prisma.event.findMany();
@@ -107,6 +136,8 @@ class PrismaEventRepository implements IEventRepository {
   }
 }
 
-export function CreatePrismaEventRepository(prisma: PrismaClient): IEventRepository {
+export function CreatePrismaEventRepository(
+  prisma: PrismaClient,
+): IEventRepository {
   return new PrismaEventRepository(prisma);
 }
