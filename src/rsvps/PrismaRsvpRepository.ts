@@ -107,7 +107,9 @@ class PrismaRsvpRepository implements IRsvpRepository {
 
   async countByEventId(eventId: string): Promise<Result<number, RsvpError>> {
     try {
-      const count = await this.prisma.rsvp.count({ where: { eventId } });
+      const count = await this.prisma.rsvp.count({
+        where: { eventId, status: "going" },
+      });
       return Ok(count);
     } catch {
       return Err(UnexpectedRsvpError("Unable to count RSVPs."));
