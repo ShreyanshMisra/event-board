@@ -264,4 +264,20 @@ describe("Event Search — integration", () => {
     expect(res.text).toContain("Campus Movie Night");
     expect(res.text).not.toContain("<html");
   });
+
+  it("searches case-insensitively", async () => {
+    await createEvent(staffCookie, {
+      title: "Career Fair",
+      description: "Meet recruiters",
+      location: "Student Center",
+      category: "career",
+    });
+
+    await publishEventByTitle(staffCookie, "Career Fair");
+
+    const res = await request(app).get("/events/search").query({ q: "CAREER" });
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("Career Fair");
+  });
 });

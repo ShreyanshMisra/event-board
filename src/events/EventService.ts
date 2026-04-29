@@ -184,14 +184,7 @@ class EventService implements IEventService {
   async searchUpcoming(
     query: string,
   ): Promise<Result<IEventSummary[], EventError>> {
-    const result = await this.events.findUpcoming();
-
-    if (result.ok === false) {
-      return result;
-    }
-
-    const now = Date.now();
-    const normalizedQuery = query.trim().toLowerCase();
+    const normalizedQuery = query.trim();
 
     if (normalizedQuery.length > 200) {
       return Err(
@@ -199,26 +192,13 @@ class EventService implements IEventService {
       );
     }
 
-    const publishedUpcoming = result.value.filter((event) => {
-      return (
-        event.status === "published" &&
-        new Date(event.startDate).getTime() > now
-      );
-    });
+    const result = await this.events.searchUpcoming(normalizedQuery);
 
-    if (!normalizedQuery) {
-      return Ok(publishedUpcoming.map(toEventSummary));
+    if (result.ok === false) {
+      return Err(UnexpectedEventError(result.value.message));
     }
 
-    const matches = publishedUpcoming.filter((event) => {
-      return (
-        event.title.toLowerCase().includes(normalizedQuery) ||
-        event.description.toLowerCase().includes(normalizedQuery) ||
-        event.location.toLowerCase().includes(normalizedQuery)
-      );
-    });
-
-    return Ok(matches.map(toEventSummary));
+    return Ok(result.value.map(toEventSummary));
   }
 
   async findById(

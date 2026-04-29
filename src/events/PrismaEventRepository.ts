@@ -164,6 +164,8 @@ class PrismaEventRepository implements IEventRepository {
   }
 }
 
-export function CreatePrismaEventRepository(prisma: PrismaClient): IEventRepository {
+export function CreatePrismaEventRepository(
+  prisma: PrismaClient,
+): IEventRepository {
   return new PrismaEventRepository(prisma);
 }

@@ -9,6 +9,7 @@ export interface IEventRepository {
   findByOrganizerId(organizerId: string): Promise<Result<IEventRecord[], EventError>>;
   
   findUpcoming(): Promise<Result<IEventRecord[], EventError>>;
+  searchUpcoming(query: string): Promise<Result<IEventRecord[], EventError>>;
   findAll(): Promise<Result<IEventRecord[], EventError>>;
   updateStatus(id: string,status: IEventRecord["status"],): Promise<Result<IEventRecord, EventError>>;
   update(event: IEventRecord): Promise<Result<IEventRecord, EventError>>;
