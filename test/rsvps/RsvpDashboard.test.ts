@@ -38,15 +38,20 @@ async function createEvent(
   cookie: string,
   overrides: Record<string, string> = {},
 ): Promise<string> {
+  const baseTitle =
+    overrides.title ??
+    `Default Title ${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const uniqueTitle = `${baseTitle} ${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const { title: _ignored, ...rest } = overrides;
   const body = {
-    title: "Default Title",
     description: "Default description text",
     location: "Room 101",
     category: "academic",
     capacity: "30",
     startDate: "2027-06-01T10:00",
     endDate: "2027-06-01T12:00",
-    ...overrides,
+    ...rest,
+    title: uniqueTitle,
   };
 
   await request(server)
@@ -56,8 +61,11 @@ async function createEvent(
     .send(body);
 
   const homeRes = await request(server).get("/home").set("Cookie", cookie);
-  const ids = extractEventIds(homeRes.text);
-  return ids[ids.length - 1] ?? "";
+  const escaped = uniqueTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = homeRes.text.match(
+    new RegExp(`${escaped}[\\s\\S]*?/events/([0-9a-f-]{36})`),
+  );
+  return match?.[1] ?? "";
 }
 
 async function publishEvent(

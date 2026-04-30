@@ -1,6 +1,12 @@
 import http from "http";
 import request from "supertest";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaClient } from "@prisma/client";
 import { createComposedApp } from "../../src/composition";
+
+const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
+const adapter = new PrismaBetterSqlite3({ url: dbUrl });
+const prisma = new PrismaClient({ adapter });
 
 const app = createComposedApp().getExpressApp();
 let server: http.Server;
@@ -20,9 +26,6 @@ function unique(value: string): string {
   return `${value}-${uniqueCounter}`;
 }
 
-/**
- * Helper: log in as a demo user and return the session cookie.
- */
 async function loginAs(email: string, password: string): Promise<string> {
   const res = await request(server)
     .post("/login")
@@ -34,9 +37,6 @@ async function loginAs(email: string, password: string): Promise<string> {
   return cookieHeader ?? "";
 }
 
-/**
- * Helper: create a regular user through admin.
- */
 async function createRegularUser(
   adminCookie: string,
   email: string,
@@ -56,9 +56,6 @@ async function createRegularUser(
   expect(res.status).toBe(302);
 }
 
-/**
- * Helper: create event
- */
 async function createEvent(
   cookie: string,
   overrides: Partial<{
@@ -142,6 +139,10 @@ describe("RSVP Toggle — integration", () => {
   let adminCookie: string;
 
   beforeAll(async () => {
+    // ✅ CLEAN DATABASE BEFORE TESTS
+    await prisma.rsvp.deleteMany();
+    await prisma.event.deleteMany();
+
     staffCookie = await loginAs("staff@app.test", "password123");
     adminCookie = await loginAs("admin@app.test", "password123");
     userCookie = await loginAs("user@app.test", "password123");
@@ -151,14 +152,14 @@ describe("RSVP Toggle — integration", () => {
     user2Cookie = await loginAs(email, "password123");
   });
 
-  // ── Auth guards ─────────────────────────────────
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
 
   it("rejects unauthenticated toggle", async () => {
     const res = await request(server).post("/events/123/rsvp");
     expect(res.status).toBe(401);
   });
-
-  // ── Basic toggle ─────────────────────────────────
 
   it("creates RSVP as going", async () => {
     const title = await createEvent(staffCookie);
@@ -203,8 +204,6 @@ describe("RSVP Toggle — integration", () => {
     expect(res.text).toContain("Cancel RSVP");
   });
 
-  // ── Capacity / waitlist ─────────────────────────
-
   it("puts second user on waitlist", async () => {
     const title = await createEvent(staffCookie, { capacity: "1" });
     const id = await publishEvent(staffCookie, title);
@@ -219,8 +218,6 @@ describe("RSVP Toggle — integration", () => {
     expect(res.text).toContain("Waitlisted");
     expect(res.text).toContain("Attendees: 1");
   });
-
-  // ── Invalid attempts ────────────────────────────
 
   it("rejects staff RSVP", async () => {
     const title = await createEvent(staffCookie);
@@ -271,8 +268,6 @@ describe("RSVP Toggle — integration", () => {
 
     expect(res.status).toBe(400);
   });
-
-  // ── HTMX behavior ──────────────────────────────
 
   it("returns partial HTML (no full page)", async () => {
     const title = await createEvent(staffCookie);

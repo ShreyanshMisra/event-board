@@ -57,6 +57,45 @@ class InMemoryEventRepository implements IEventRepository {
     }
   }
 
+  async searchUpcoming(
+    query: string,
+  ): Promise<Result<IEventRecord[], EventError>> {
+    try {
+      const now = Date.now();
+      const normalizedQuery = query.trim().toLowerCase();
+
+      const matches = this.events
+        .filter((event) => {
+          const isPublishedUpcoming =
+            event.status === "published" &&
+            new Date(event.startDate).getTime() > now;
+
+          if (!isPublishedUpcoming) {
+            return false;
+          }
+
+          if (!normalizedQuery) {
+            return true;
+          }
+
+          return (
+            event.title.toLowerCase().includes(normalizedQuery) ||
+            event.description.toLowerCase().includes(normalizedQuery) ||
+            event.location.toLowerCase().includes(normalizedQuery)
+          );
+        })
+        .sort(
+          (a, b) =>
+            new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+        )
+        .map((event) => ({ ...event }));
+
+      return Ok(matches);
+    } catch {
+      return Err(UnexpectedEventError("Unable to search upcoming events."));
+    }
+  }
+
   async findAll(): Promise<Result<IEventRecord[], EventError>> {
     return Ok(this.events);
   }
