@@ -47,18 +47,37 @@
             </span>
           </div>
 
-          <div class="mt-4">
+          <div class="mt-4" x-data="{ confirming: false }">
             <form
               hx-post="/events/<%= item.event.id %>/rsvp"
               hx-target="#rsvp-row-<%= item.event.id %>"
               hx-swap="outerHTML"
             >
               <button
-                type="submit"
-                class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-500"
+                type="button"
+                x-show="!confirming"
+                x-on:click="confirming = true"
+                class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-500 cursor-pointer"
               >
                 <%= item.rsvp.status === 'going' ? 'Cancel RSVP' : 'Leave Waitlist' %>
               </button>
+
+              <div x-show="confirming" x-cloak class="flex items-center gap-2 flex-wrap">
+                <span class="text-sm text-slate-700">Are you sure?</span>
+                <button
+                  type="submit"
+                  class="inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-500 cursor-pointer"
+                >
+                  Yes, <%= item.rsvp.status === 'going' ? 'cancel' : 'leave' %>
+                </button>
+                <button
+                  type="button"
+                  x-on:click="confirming = false"
+                  class="inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 cursor-pointer"
+                >
+                  Keep RSVP
+                </button>
+              </div>
             </form>
           </div>
         </div>
