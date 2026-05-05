@@ -26,21 +26,35 @@
       </p>
     </div>
 
-    <form class="w-full max-w-md">
-      <label for="event-search" class="sr-only">Search events</label>
-      <input
-        id="event-search"
-        name="q"
-        type="search"
-        placeholder="Search by title, description, or location"
-        class="w-full rounded-xl border border-slate-300 px-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none"
-        hx-get="/events/search"
-        hx-trigger="input changed delay:300ms, keyup[key=='Enter'], search"
-        hx-target="#event-list"
-        hx-swap="innerHTML"
-        autocomplete="off"
-      />
-    </form>
+<form class="w-full max-w-md">
+  <label for="event-search" class="sr-only">Search events</label>
+
+  <div class="relative" x-data="{ query: '' }">
+    <input
+      id="event-search"
+      name="q"
+      type="search"
+      placeholder="Search by title, description, or location"
+      class="w-full rounded-xl border border-slate-300 px-4 py-2 pr-10 text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      hx-get="/events/search"
+      hx-trigger="input changed delay:300ms, keyup[key=='Enter'], search"
+      hx-target="#event-list"
+      hx-swap="innerHTML"
+      x-model="query"
+      autocomplete="off"
+    />
+
+    <!-- Clear button -->
+    <button
+      type="button"
+      x-show="query.length > 0"
+      @click="query = ''; $el.closest('form').submit()"
+      class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-lg"
+    >
+      ×
+    </button>
+  </div>
+</form>
   </div>
 
   <section id="event-list">
