@@ -3,6 +3,7 @@ import type { IAppBrowserSession } from "../session/AppSession";
 import type { ILoggingService } from "../service/LoggingService";
 import type { IEventService, CreateEventInput, EditEventInput } from "./EventService";
 import type { EventError } from "./errors";
+import { formatGoogleCalendarUrl } from "../calendar/IcsFormatter";
 
 export interface IEventController {
   showCreateForm(
@@ -188,6 +189,18 @@ class EventController implements IEventController {
     const canCancel = event.status === "published" && (isOrganizer || isAdmin);
 
     const canSave = event.status === "published" && user.role === "user";
+    const canExportCalendar =
+      event.status === "published" || isOrganizer || isAdmin;
+    const googleCalendarUrl = canExportCalendar
+      ? formatGoogleCalendarUrl({
+          id: event.id,
+          title: event.title,
+          description: event.description,
+          location: event.location,
+          startDate: event.startDate,
+          endDate: event.endDate,
+        })
+      : null;
 
     res.render("events/detail", {
       event,
@@ -199,6 +212,8 @@ class EventController implements IEventController {
       canCancel,
       canSave,
       isSaved,
+      canExportCalendar,
+      googleCalendarUrl,
     });
   }
 
@@ -278,6 +293,18 @@ class EventController implements IEventController {
     const canCancel = event.status === "published" && (isOrganizer || isAdmin);
     
     const canSave = event.status === "published" && user.role === "user";
+    const canExportCalendar =
+      event.status === "published" || isOrganizer || isAdmin;
+    const googleCalendarUrl = canExportCalendar
+      ? formatGoogleCalendarUrl({
+          id: event.id,
+          title: event.title,
+          description: event.description,
+          location: event.location,
+          startDate: event.startDate,
+          endDate: event.endDate,
+        })
+      : null;
     if (isHtmx) {
       res.render("events/detail", {
         event,
@@ -288,6 +315,8 @@ class EventController implements IEventController {
         canPublish,
         canCancel,
         canSave,
+        canExportCalendar,
+        googleCalendarUrl,
         layout: false,
       });
       return;
@@ -342,6 +371,18 @@ class EventController implements IEventController {
     const canCancel = event.status === "published" && (isOrganizer || isAdmin);
     
     const canSave = event.status === "published" && user.role === "user";
+    const canExportCalendar =
+      event.status === "published" || isOrganizer || isAdmin;
+    const googleCalendarUrl = canExportCalendar
+      ? formatGoogleCalendarUrl({
+          id: event.id,
+          title: event.title,
+          description: event.description,
+          location: event.location,
+          startDate: event.startDate,
+          endDate: event.endDate,
+        })
+      : null;
     if (isHtmx) {
       res.render("events/detail", {
         event,
@@ -352,6 +393,8 @@ class EventController implements IEventController {
         canPublish,
         canCancel,
         canSave,
+        canExportCalendar,
+        googleCalendarUrl,
         layout: false,
       });
       return;
