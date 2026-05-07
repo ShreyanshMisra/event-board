@@ -12,7 +12,15 @@
   <% } %>
 
   <% if (upcoming.length > 0) { %>
-    <h2 class="text-lg font-semibold text-slate-800 mb-3">Upcoming</h2>
+    <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+      <h2 class="text-lg font-semibold text-slate-800">Upcoming</h2>
+      <a
+        href="/my-rsvps/calendar.ics"
+        class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-50"
+      >
+        Download calendar (.ics)
+      </a>
+    </div>
     <div class="space-y-4 mb-8">
       <% for (const item of upcoming) { %>
         <div id="rsvp-row-<%= item.event.id %>" class="p-5 border border-slate-200 rounded-2xl bg-white shadow-lg">

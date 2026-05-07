@@ -8,6 +8,7 @@ import type { UserRole } from "./auth/User";
 import { IEventController } from "./events/EventController";
 import { IRsvpController } from "./rsvps/RsvpController";
 import { ISavedEventController } from "./saved/SavedEventController";
+import { ICalendarController } from "./calendar/CalendarController";
 import { IApp } from "./contracts";
 import {
   getAuthenticatedUser,
@@ -42,6 +43,7 @@ class ExpressApp implements IApp {
     private readonly eventController: IEventController,
     private readonly rsvpController: IRsvpController,
     private readonly savedEventController: ISavedEventController,
+    private readonly calendarController: ICalendarController,
     private readonly logger: ILoggingService,
   ) {
     this.app = express();
@@ -341,6 +343,32 @@ class ExpressApp implements IApp {
     );
 
     this.app.get(
+      "/events/:id/calendar.ics",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.")
+              .message,
+            layout: false,
+          });
+          return;
+        }
+
+        await this.calendarController.exportEvent(
+          req,
+          res,
+          currentUser.userId,
+          currentUser.role,
+        );
+      }),
+    );
+
+    this.app.get(
       "/events/:id",
       asyncHandler(async (req, res) => {
         if (!this.requireAuthenticated(req, res)) {
@@ -461,6 +489,39 @@ class ExpressApp implements IApp {
           res,
           currentUser.userId,
           browserSession,
+        );
+      }),
+    );
+
+    this.app.get(
+      "/my-rsvps/calendar.ics",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.")
+              .message,
+            layout: false,
+          });
+          return;
+        }
+
+        if (currentUser.role !== "user") {
+          res.status(403).render("partials/error", {
+            message: "The RSVPs calendar is only available to members.",
+            layout: false,
+          });
+          return;
+        }
+
+        await this.calendarController.exportMyRsvps(
+          req,
+          res,
+          currentUser.userId,
         );
       }),
     );
@@ -591,6 +652,7 @@ export function CreateApp(
   eventController: IEventController,
   rsvpController: IRsvpController,
   savedEventController: ISavedEventController,
+  calendarController: ICalendarController,
   logger: ILoggingService,
 ): IApp {
   return new ExpressApp(
@@ -598,6 +660,7 @@ export function CreateApp(
     eventController,
     rsvpController,
     savedEventController,
+    calendarController,
     logger,
   );
 }
