@@ -98,6 +98,23 @@
           <%- include("../saved/partials/save-button", { eventId: event.id, isSaved }) %>
         <% } %>
 
+        <% if (typeof canExportCalendar !== "undefined" && canExportCalendar) { %>
+          <a
+            href="<%= googleCalendarUrl %>"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
+          >
+            Add to Google Calendar
+          </a>
+          <a
+            href="/events/<%= event.id %>/calendar.ics"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Download .ics
+          </a>
+        <% } %>
+
       </div>
 
       <% if (canRsvp) { %>
