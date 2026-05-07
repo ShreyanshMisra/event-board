@@ -1,7 +1,39 @@
 <div id="event-detail">
-  <section class="max-w-2xl mx-auto p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
-    <p class="text-sm font-medium text-slate-500 mb-2">Event Detail</p>
-    <h1 class="text-2xl font-bold text-slate-900 mb-5"><%= event.title %></h1>
+  <section
+    class="max-w-3xl mx-auto p-6 rounded-2xl bg-white border transition-all duration-300
+      <%= event.status === 'published'
+        ? 'border-green-300 shadow-lg shadow-green-100'
+        : event.status === 'cancelled'
+        ? 'border-red-300 shadow-lg shadow-red-100'
+        : 'border-slate-200 shadow-lg'
+      %>"
+  >
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <p class="text-sm font-medium text-slate-500 mb-2">Event Detail</p>
+        <h1 class="text-3xl font-bold text-slate-900"><%= event.title %></h1>
+        <p class="mt-2 text-slate-500">
+          Organized by <strong class="text-slate-700"><%= event.organizerId %></strong>
+        </p>
+      </div>
+
+      <span
+        x-data="{ changed: true }"
+        x-init="setTimeout(() => changed = false, 700)"
+        :class="changed ? 'scale-110 ring-2 ring-offset-2' : 'scale-100'"
+        class="inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold transition-all duration-300
+          <%= event.status === 'draft'
+            ? 'bg-slate-100 text-slate-700 ring-slate-300'
+            : event.status === 'published'
+            ? 'bg-green-100 text-green-700 ring-green-300'
+            : event.status === 'cancelled'
+            ? 'bg-red-100 text-red-700 ring-red-300'
+            : 'bg-yellow-100 text-yellow-700 ring-yellow-300'
+          %>"
+      >
+        <%= event.status %>
+      </span>
+    </div>
 
     <% if (pageError) { %>
       <div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
@@ -9,49 +41,77 @@
       </div>
     <% } %>
 
-    <div class="space-y-4 text-slate-800">
-      <div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 text-slate-800">
+      <div class="md:col-span-2 rounded-xl bg-slate-50 p-4">
         <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Description</h2>
-        <p class="mt-1"><%= event.description %></p>
+        <p class="mt-2 leading-relaxed"><%= event.description %></p>
       </div>
 
-      <div>
+      <div class="rounded-xl border border-slate-200 p-4">
         <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Location</h2>
-        <p class="mt-1"><%= event.location %></p>
+        <p class="mt-2"><%= event.location %></p>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Category</h2>
-          <p class="mt-1"><%= event.category %></p>
-        </div>
-
-        <div>
-          <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Capacity</h2>
-          <p class="mt-1"><%= event.capacity %></p>
-        </div>
-
-        <div>
-          <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Status</h2>
-          <p class="mt-1"><%= event.status %></p>
-        </div>
-
-        <div>
-          <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Organizer</h2>
-          <p class="mt-1"><%= event.organizerId %></p>
-        </div>
+      <div class="rounded-xl border border-slate-200 p-4">
+        <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Category</h2>
+        <p class="mt-2 capitalize"><%= event.category %></p>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Start</h2>
-          <p class="mt-1"><%= new Date(event.startDate).toLocaleString() %></p>
-        </div>
+      <div
+        class="rounded-xl border border-slate-200 p-4"
+        x-data="{
+          label: '',
+          init() {
+            const start = new Date('<%= event.startDate %>');
+            const now = new Date();
+            const diffDays = Math.round((start - now) / (1000 * 60 * 60 * 24));
 
-        <div>
-          <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">End</h2>
-          <p class="mt-1"><%= new Date(event.endDate).toLocaleString() %></p>
-        </div>
+            if (diffDays === 0) this.label = 'today';
+            else if (diffDays === 1) this.label = 'tomorrow';
+            else if (diffDays > 1) this.label = `in ${diffDays} days`;
+            else this.label = `${Math.abs(diffDays)} days ago`;
+          }
+        }"
+      >
+        <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Start</h2>
+        <p class="mt-2">
+          <%= new Date(event.startDate).toLocaleString(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short"
+          }) %>
+        </p>
+        <p class="mt-1 text-sm text-slate-500" x-text="label"></p>
+      </div>
+
+      <div
+        class="rounded-xl border border-slate-200 p-4"
+        x-data="{
+          label: '',
+          init() {
+            const end = new Date('<%= event.endDate %>');
+            const now = new Date();
+            const diffDays = Math.round((end - now) / (1000 * 60 * 60 * 24));
+
+            if (diffDays === 0) this.label = 'today';
+            else if (diffDays === 1) this.label = 'tomorrow';
+            else if (diffDays > 1) this.label = `in ${diffDays} days`;
+            else this.label = `${Math.abs(diffDays)} days ago`;
+          }
+        }"
+      >
+        <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">End</h2>
+        <p class="mt-2">
+          <%= new Date(event.endDate).toLocaleString(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short"
+          }) %>
+        </p>
+        <p class="mt-1 text-sm text-slate-500" x-text="label"></p>
+      </div>
+
+      <div class="rounded-xl border border-slate-200 p-4">
+        <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Capacity</h2>
+        <p class="mt-2"><%= event.capacity %></p>
       </div>
     </div>
 
@@ -97,24 +157,6 @@
         <% if (canSave) { %>
           <%- include("../saved/partials/save-button", { eventId: event.id, isSaved }) %>
         <% } %>
-
-        <% if (typeof canExportCalendar !== "undefined" && canExportCalendar) { %>
-          <a
-            href="<%= googleCalendarUrl %>"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
-          >
-            Add to Google Calendar
-          </a>
-          <a
-            href="/events/<%= event.id %>/calendar.ics"
-            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Download .ics
-          </a>
-        <% } %>
-
       </div>
 
       <% if (canRsvp) { %>
